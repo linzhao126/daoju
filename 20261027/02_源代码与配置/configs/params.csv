@@ -1,0 +1,23 @@
+﻿Param,Value,Meaning,Where
+K_BASE,20.0,线上 HI 基线件数,server.py:70
+W,10.0,线上 HI 平滑窗口,server.py:71
+TAU,0.01,延长许可阈值（相对上升）,server.py:72
+BASE_F,0.4,复核点 = 0.4×M0,server.py:73
+EXT_F,0.9,延长上限 = 0.9×M0,server.py:73
+MIN_N_BASIC,3.0,四格最少历史条数,server.py:80
+MIN_N_P85,5.0,P85 与判定线最少历史条数,server.py:81
+EXP_M0,100.0,无历史时代码内经验值（非计算）,server.py:83
+SEAL_DELAY_SEC,120.0,封口延迟,server.py:91
+KEEP_RAW_DAYS,7.0,raw_rows 保留天数,server.py:86
+KEEP_PIECES_DAYS,30.0,pieces 保留天数,server.py:87
+XALIGN_Z_TOL,1.0,离线 Z 带容差 mm,t1111_pipeline.py:216
+XALIGN_GRID_N,40.0,离线 X 网格点数,t1111_pipeline.py:217
+XALIGN_BASE_K,10.0,离线 HI 基线件数,t1111_pipeline.py:218
+XALIGN_DESC_TOL,2.5,啄切容差 mm,t1111_pipeline.py:222
+XALIGN_MIN_PIECES,40.0,周期最少件数,t1111_pipeline.py:220
+XALIGN_KEEP_FRAC,0.7,网格点最低覆盖率,t1111_pipeline.py:226
+XALIGN_LOAD_FRAC,0.5,负载门控比例,t1111_pipeline.py:227
+PARITY_K_CMP,10.0,本轮 parity 对比用的归一化件数,s04_hi_parity.py
+CUSUM_K,0.5,崩刃检测 CUSUM 参考值,s07_chipping.py
+CUSUM_H,6.0,崩刃检测 CUSUM 阈值,s07_chipping.py
+NOISE_FLOOR,0.01,噪声尺度下限,s07_chipping.py

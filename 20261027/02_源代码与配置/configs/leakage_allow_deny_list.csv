@@ -1,0 +1,22 @@
+﻿Field,Decision,Reason
+progress,DENY,终点比例，直接泄漏
+life_used_pct_cut,DENY,已用寿命比例（泄漏字段）
+life_used_pct_time,DENY,时间维度已用比例
+life_remain_pct_time,DENY,剩余比例
+rul_sec,DENY,剩余秒数（标签本体）
+rul_hour,DENY,剩余小时
+elapsed_sec,DENY,已耗时
+change_reason,DENY,换刀原因（终点信息）
+real_failure,DENY,"打标脚本按""发生换刀""赋的值"
+life_cycle,DENY,生命周期编号（分组键，不是特征）
+cycle_cover_ratio,CAUTION,周期覆盖率，可能含终点信息
+in_life_range,CAUTION,打标区间标记
+L_allnum,ALLOW_AS_KEY,全局件计数（9 把刀共用），不可当刀龄
+L_spindle_load,ALLOW,主轴负载（主信号）
+L_X_servo_load,ALLOW,X 轴伺服负载
+L_abso_x,ALLOW_AS_PHASE,绝对 X 位置（相位对齐用）
+L_abso_z,ALLOW_AS_PHASE,绝对 Z 位置（工步定位用）
+L_spindle_speed,ALLOW,实际转速
+L_spindle_speed_cmd,ALLOW,指令转速
+L_tool_number,ALLOW_AS_KEY,刀号（恒 T1111）
+L_wear_no,ALLOW,磨耗补偿号（恒 11，无信息）

@@ -1,0 +1,13 @@
+﻿CutoffN,Metric,N_lives,Point,CI_lo,CI_hi,ErrSD,Note
+20,MAE_M0,16,22.19,9.97,36.81,30.01,bootstrap over lives
+20,MAE_M1,16,27.93,13.5,47.89,36.38,bootstrap over lives
+20,DeltaMAE(M1-M0),16,5.74,2.3,9.94,7.99,<0 表示 M1 更好；CI 跨 0 = 不可区分
+40,MAE_M0,16,22.19,9.94,38.0,30.01,bootstrap over lives
+40,MAE_M1,16,25.96,14.84,40.14,26.3,bootstrap over lives
+40,DeltaMAE(M1-M0),16,3.77,-2.24,10.78,13.51,<0 表示 M1 更好；CI 跨 0 = 不可区分
+60,MAE_M0,13,17.23,4.96,36.66,31.06,bootstrap over lives
+60,MAE_M1,13,19.74,9.42,36.88,28.65,bootstrap over lives
+60,DeltaMAE(M1-M0),13,2.51,-1.68,6.63,7.97,<0 表示 M1 更好；CI 跨 0 = 不可区分
+80,MAE_M0,12,17.96,4.62,38.79,32.32,bootstrap over lives
+80,MAE_M1,12,17.36,4.17,38.01,33.28,bootstrap over lives
+80,DeltaMAE(M1-M0),12,-0.59,-3.21,1.95,4.91,<0 表示 M1 更好；CI 跨 0 = 不可区分

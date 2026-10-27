@@ -1,0 +1,2 @@
+﻿SourceFile,RowsInSource,RowsExtracted,ColumnsExtracted,Cycles,TimeMin,TimeMax,Note
+influxdb_4152_FanucNormalData_20261012_104944_L_T1111_T1111_life_labeled.csv,384595,384595,19,20,2026-09-14 08:18:00.365,2026-10-09 16:11:04.395,列裁剪，行不裁剪；原始文件哈希见 MANIFEST

@@ -1,0 +1,4 @@
+﻿PhysicalLifeId,N_pieces_common,Z0,Grid_off_lo,Grid_off_hi,Grid_on_lo,Grid_on_hi,Grid_span_diff,Npts_off_median,Npts_on_median,LoadMed_off_median,LoadMed_on_median,LoadMed_median_diff_pct,LoadMed_MAPE_pct,HI_corr_pearson,HI_corr_spearman,HI_max_abs_diff,HI_last10_off,HI_last10_on,Trend_off_pct_per10,Trend_on_pct_per10
+4152-L-T1111-c25,52,-38.3,-0.08,40.0,19.0,40.0,-19.08,88.0,31.0,1329.75,1731.826,30.24,30.97,0.3393,0.2194,0.1034,0.9627,0.9925,-3.68,-0.75
+4152-L-T1111-c26,77,-38.3,-0.048,40.0,19.0,40.0,-19.048,85.0,30.0,1303.0,1777.034,36.38,35.76,0.1652,0.0857,0.1334,1.047,1.0461,4.28,4.61
+4152-L-T1111-c38,197,-38.3,0.173,40.0,19.0,40.0,-18.827,74.0,31.0,1301.0,1768.755,35.95,35.52,0.4473,0.3566,0.1764,1.0123,0.995,1.43,-0.5
