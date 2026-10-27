@@ -1,0 +1,13 @@
+﻿ID,对应审核条目,标题,性质,优先级,批次,是否改变历史数字,依赖,交付脚本,验收方式,当前状态,外部依赖
+FIX-01,P0-01,消除M1-old的LOCO泄漏（两层留一）,修方法论,P0,1,是（M1全部）,无,s02b_loco_nested.py,Test-A 改测试刀寿命后FitB不变,已完成(Test-A 171/171 PASS),无
+FIX-02,P0-02,构建因果as_of_N单件HI（Mode-C1/C2两版）,修方法论,P0,1,是（全部HI与全部指标）,无,s10_asof_hi.py,Test-B 删尾部后前N件HI逐位相同,已完成(Test-B 40/40 PASS),无
+FIX-07,P1-02/P1-07,同口径完整对比（含每模型独立区间）,重算,P1,1,是（区间与显著性）,FIX-01/02,s15_compare_v2.py,metrics_all_models 的 n_same/Programs 两列齐全,已完成(同样本+独立区间),无
+FIX-03,P0-03,物理刃口×程序Segment数据集（Version A严格/B分层）,重建数据集,P0,2,是（样本集16→约11）,台账版本,s11_dataset_v2.py,Test-C 混合周期单刃口多segment且刀龄不归零,已完成(VersionA=12/VersionB=16),完整台账/刀寿量纲/c38结束时间
+FIX-06,P1-01,解决E01与s04网格矛盾（含我方反证）,澄清,P1,2,否（但改解释）,无,s14_grid_trace.py,17周期glo/ghi逐条可核+两种假设复现18.79~19.18,"已结案(审核方对,我方s04作废)",审核方E01代码与输入哈希
+FIX-05,P0-05,崩刃A重做（因果健康模板+行级+冷却去抖）,重做检测,P0,3,是（崩刃全表）,FIX-02,s13_chipping_row.py,弱标签覆盖率+误报密度双口径+延迟分项,已完成(负结果:特异性0/2),recv_ts列/CNC停机接口
+FIX-04,P0-04,补交付全部CSV与可再生产包,交付,P0,4,否,全部,s12_package_v2.py,MANIFEST含三层证据标记+单命令复现,已完成(MANIFEST196+run_all.sh),无
+FIX-08,P1-03/P1-08,UI与安全策略整改方案（只出方案）,方案,P1,4,否,无,文档,禁已许可延寿/禁比新刀高/seed与online分列,已完成(方案+10项回归),无
+GOV-01,§4.5,三层证据标记全量重标,治理,P0,4,否,全部,evidence_level.csv,每条claim有级别与复现命令,已完成(MANIFEST带证据分级),无
+TEST-A,§3,训练隔离单测,单测,P0,1,—,FIX-01,tests/test_a.py,扰动3档×4截断全pass,PASS,无
+TEST-B,§3,时间截断因果性单测,单测,P0,1,—,FIX-02,tests/test_b.py,删除尾部与尾部随机化两种扰动全pass,PASS,无
+TEST-C,§3,程序混用单测,单测,P0,2,—,FIX-03,tests/test_c.py,c33构造后segment数与刀龄累计正确,PASS(4/4),无

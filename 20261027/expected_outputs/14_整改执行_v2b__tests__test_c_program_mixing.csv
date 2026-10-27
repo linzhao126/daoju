@@ -1,0 +1,4 @@
+﻿PhysicalLifeId,N_segments,Programs,FirstRowProgram,MajorProgram,SumSegPieces,ObservedPieces,PASS_OneLifeId,PASS_MultiSegment,PASS_AgeNotReset,PASS_NoMissingExposure,Demonstrates_HardAssignBug,SegmentDetail
+4152-L-T1111-c33,2,"19,20",20,19,107,107,True,True,True,True,True,20:51件(49.4%);19:56件(50.6%)
+4152-L-T1111-c34,2,"14,19",19,14,117,117,True,True,True,True,True,19:41件(34.1%);14:76件(65.9%)
+4152-L-T1111-c27,2,"14,20",14,20,98,98,True,True,True,True,True,14:6件(2.5%);20:92件(97.5%)
