@@ -1,0 +1,367 @@
+==============================================================================
+特征归一化体检报告
+数据源: merged_csv_20260901_160345_T2525_life_labeled_rollingfeat.csv
+范围  : leakage_blacklist.json 中 keep 的 265 个可入模列
+==============================================================================
+
+【0. 一句话结论】
+  XGBoost 等树模型: 这 265 列【一列都不需要】做标准化/归一化。
+    树的分裂只看排序, 任何单调缩放不改变分裂结果。
+  但下面 3 类归一化与模型无关, 不做会出事:
+    (1) 物理量纲归一化 -- 把绝对量换成相对量(核心: 绝对坐标/负载/转速)
+    (2) 跨周期/跨机床分布对齐 -- 你最终要迁移到别的车床, 这是必须的
+    (3) 换模型时才需要 -- LSTM/TCN/SVM/KNN/线性/PCA 必须 z-score 或 [0,1]
+
+------------------------------------------------------------------------------
+【1. 量纲总览: 各列值域差多少】
+  按类别汇总 (range_p99 = p99-p1, 用分位数避免离群点主导)
+
+  类别           列数     range中位数     range最小      range最大      量级跨度      
+  abs_coord    87     64.3         0.267        298          10^-1 ~ 10^2
+  count        24     13.5         4            99           10^1 ~ 10^2
+  distance     1      4.06e+04     4.06e+04     4.06e+04     10^5 ~ 10^5
+  load         105    48           0            3.21e+04     10^-99 ~ 10^5
+  ratio        1      2.4e+04      2.4e+04      2.4e+04      10^4 ~ 10^4
+  slope        24     0.854        0.00333      850          10^-2 ~ 10^3
+  speed        22     2.63e+03     1.62e+03     4e+03        10^3 ~ 10^4
+  time_cnt     1      58.8         58.8         58.8         10^2 ~ 10^2
+
+  全表: range_p99 从 0 到 4.06e+04, 相差 40563000000000000 倍
+
+------------------------------------------------------------------------------
+【2. 每一类的具体数值(每类取 range 最大的 3 列作代表)】
+
+  列名                                         类别                  p1        p99        std      零值%
+  L_abso_y_ptp_10min                         abs_coord            0        298       58.3     6.1%
+  L_abso_y_ptp_5min                          abs_coord            0        281         65    12.6%
+  L_abso_y_ptp_3min                          abs_coord            0        244       70.8    22.8%
+
+  L_B_servo_load_spike_cnt_10min             count                0         99       29.2    41.5%
+  L_B_servo_load_spike_cnt_5min              count                0         56       16.3    49.6%
+  L_Y_servo_load_spike_cnt_10min             count                0         38       12.6    24.5%
+
+  L_distance                                 distance     -3.75e+04   3.03e+03   1.05e+04    69.1%
+
+  L_spindle_load_ptp_1min                    load                 0   3.21e+04   1.13e+04     1.3%
+  L_spindle_load                             load               102   3.08e+04   5.24e+03     0.5%
+  L_spindle_load_ptp_3min                    load          1.69e+03   3.23e+04   9.63e+03     0.7%
+
+  L_rate1                                    ratio                0    2.4e+04   4.62e+03     5.1%
+
+  L_spindle_load_slope_1min                  slope             -364        487        107     0.2%
+  L_spindle_load_slope_3min                  slope             -110        163       34.4     0.1%
+  L_spindle_load_slope_5min                  slope            -67.5       97.2       20.5     0.1%
+
+  L_spindle_speed_ptp_10min                  speed                3      4e+03        739     0.5%
+  L_spindle_speed_ptp_5min                   speed                3      4e+03        897     0.6%
+  L_spindle_speed_ptp_3min                   speed                2   3.95e+03   1.07e+03     0.8%
+
+  L_circle_time                              time_cnt         0.528       59.3       17.2     0.0%
+
+------------------------------------------------------------------------------
+【3. 跨周期分布漂移 Top 25 (最该做对齐的列)】
+  drift_cv = 各周期均值的标准差 / 全局均值
+  含义: 同一把刀在不同寿命周期里, 该特征的整体水平浮动幅度
+  影响: 数值大 = 模型容易靠'绝对水平'定位周期 -> 换一把刀/一台床就废
+
+  3a. 真漂移(zero_pct < 50%, 值得关注) ----
+
+  列名                                         类别            drift_cv      周期均值极差比      零值%
+  L_abso_z_min_1min                          abs_coord       35.548                 10.0%
+  L_abso_x_min_10min                         abs_coord       23.827        23.4x     0.0%
+  L_abso_z_min_3min                          abs_coord        6.616                  1.7%
+  L_abso_z_min_5min                          abs_coord        6.258                  0.7%
+  L_abso_z_min_10min                         abs_coord        5.983                  0.5%
+  L_spindle_load_min_1min                    load             4.429        32.0x     6.4%
+  L_abso_x_min_5min                          abs_coord        4.420       335.9x     0.0%
+  L_spindle_speed_slope_1min                 slope            3.668                 30.9%
+  L_spindle_speed_slope_3min                 slope            3.325                 30.5%
+  L_spindle_speed_slope_5min                 slope            3.036                 30.0%
+  L_abso_y_mean_1min                         abs_coord        2.852        15.7x    49.9%
+  L_abso_y_mean_10min                        abs_coord        2.820        14.3x     6.1%
+  L_abso_y_mean_5min                         abs_coord        2.736        13.8x    12.5%
+  L_abso_x_min_3min                          abs_coord        2.712        15.7x     0.0%
+  L_abso_y_mean_3min                         abs_coord        2.701        12.9x    22.6%
+  L_abso_x_min_1min                          abs_coord        2.632        28.9x     0.0%
+  L_spindle_load_min_3min                    load             2.604        18.3x    11.3%
+  L_Z_servo_load_slope_1min                  slope            2.572        13.1x     6.2%
+  L_spindle_speed_slope_10min                slope            2.302                 29.1%
+  L_spindle_load_min_5min                    load             2.029        16.1x    16.4%
+
+  3b. 假漂移(zero_pct >= 50%, 是'分母近零'造成的统计假象, 不是工况漂移) ----
+
+  列名                                         类别            drift_cv      零值% 判定
+  L_B_servo_load_slope_10min                 slope           50.423    90.0% 稀疏列,谨慎使用
+  L_B_servo_load_min_10min                   load            19.495   100.0% 退化列,建议剔除
+  L_abso_y_min_1min                          abs_coord       10.695    98.0% 稀疏列,谨慎使用
+  L_B_servo_load_slope_1min                  slope            9.112    90.1% 稀疏列,谨慎使用
+  L_B_servo_load_min_5min                    load             6.280   100.0% 退化列,建议剔除
+  L_B_servo_load_min_1min                    load             5.207    99.9% 退化列,建议剔除
+  L_B_servo_load_slope_5min                  slope            5.025    90.1% 稀疏列,谨慎使用
+  L_B_servo_load_min_3min                    load             4.847   100.0% 退化列,建议剔除
+  L_X_servo_load_min_1min                    load             4.293    75.2% 稀疏列,谨慎使用
+  L_X_servo_load_min_3min                    load             3.518    87.6% 稀疏列,谨慎使用
+
+  各类别 drift_cv 中位数(整体漂移水平):
+    distance     2.244
+    ratio        1.386
+    slope        1.223
+    count        0.633
+    abs_coord    0.527
+    load         0.522
+    speed        0.195
+    time_cnt     0.083
+
+  漂移最小的 10 列(水平稳定, 无需对齐):
+    L_abso_x_max_10min                         drift_cv=0.0192
+    L_abso_x_ptp_10min                         drift_cv=0.0283
+    L_abso_x_max_5min                          drift_cv=0.0318
+    L_abso_x_ptp_5min                          drift_cv=0.0446
+    L_abso_x_max_3min                          drift_cv=0.0488
+    L_abso_x_ptp_3min                          drift_cv=0.0670
+    L_spindle_load_ptp_10min                   drift_cv=0.0754
+    L_abso_y_max_10min                         drift_cv=0.0762
+    L_spindle_load_max_10min                   drift_cv=0.0789
+    L_circle_time                              drift_cv=0.0830
+
+------------------------------------------------------------------------------
+【3.5 退化列检测: 这些列根本不用谈归一化, 直接剔】
+  判据: range_p99 == 0 (p1 到 p99 之间毫无变化) 或 零值占比 > 99%
+
+  列名                                         类别               零值%     唯一值数 判定
+  L_B_servo_load_min_1min                    load          99.94%        2 全退化
+  L_B_servo_load_min_3min                    load          99.98%        2 全退化
+  L_B_servo_load_min_5min                    load          99.99%        2 全退化
+  L_B_servo_load_min_10min                   load         100.00%        2 全退化
+
+  次一级: 零值占比 90%~99% 的稀疏列 14 个(可用, 但统计量不稳):
+    L_abso_y_min_1min                          零值=98.00%  range=41.6
+    L_abso_y                                   零值=97.06%  range=156.8
+    L_abso_y_min_3min                          零值=95.56%  range=119.7
+    L_abso_y_slope_5min                        零值=95.00%  range=0.5333
+    L_abso_y_slope_1min                        零值=94.69%  range=4.054
+    L_abso_y_slope_3min                        零值=94.68%  range=0.9956
+    L_abso_y_slope_10min                       零值=94.64%  range=0.2667
+    L_X_servo_load_min_10min                   零值=94.14%  range=2
+    L_B_servo_load                             零值=93.49%  range=1
+    L_abso_y_min_5min                          零值=93.27%  range=119.7
+    L_X_servo_load_min_5min                    零值=91.23%  range=2
+    L_B_servo_load_slope_5min                  零值=90.09%  range=0.006666
+
+------------------------------------------------------------------------------
+【4. 绝对坐标专项(L_abso_x/y/z 及其衍生)】
+  绝对机械坐标的量纲是 mm, 但它的【零点取决于对刀点和工件坐标系】。
+  换工件/重新对刀/换机床后, 同一物理位置的读数完全不同 -> 绝对值无泛化意义。
+
+  列名                                                 p1        p99      range   drift_cv
+  L_abso_x                                         -0.1      138.0      138.1      0.712
+  L_abso_y                                          0.0      156.8      156.8      3.051
+  L_abso_z                                         -1.0      141.7      142.7      0.562
+  L_abso_x_mean_1min                                9.7      117.4      107.7      0.886
+  L_abso_x_max_1min                                10.5      138.0      127.5      0.092
+  L_abso_x_min_1min                                -1.0       79.9       80.9      2.632
+  L_abso_x_std_1min                                 0.0       67.2       67.2      0.410
+  L_abso_x_ptp_1min                                 0.0      139.0      139.0      0.154
+  L_abso_y_mean_1min                                0.0       70.4       70.4      2.852
+  L_abso_y_max_1min                                 0.0      161.7      161.7      0.427
+  L_abso_y_min_1min                               -41.6        0.0       41.6     10.695
+  L_abso_y_std_1min                                 0.0       76.3       76.3      0.997
+  L_abso_y_ptp_1min                                 0.0      161.7      161.7      0.409
+  L_abso_z_mean_1min                               -0.8       74.1       74.9      0.524
+  L_abso_z_max_1min                                -0.3      148.0      148.3      0.470
+  L_abso_z_min_1min                                -1.0       29.4       30.4     35.548
+  L_abso_z_std_1min                                 0.0       45.8       45.8      0.450
+  L_abso_z_ptp_1min                                 0.0      148.5      148.5      0.459
+  L_abso_x_slope_1min                              -2.2        2.1        4.3      1.585
+  L_abso_y_slope_1min                              -1.4        2.7        4.1      3.499
+  L_abso_z_slope_1min                              -2.4        1.4        3.9      0.780
+  L_abso_x_spike_cnt_1min                           0.0        4.0        4.0      0.283
+  L_abso_y_spike_cnt_1min                           0.0        4.0        4.0      0.613
+  L_abso_z_spike_cnt_1min                           0.0        2.0        2.0      0.488
+  L_abso_x_mean_3min                               10.5       83.4       72.9      0.775
+  L_abso_x_max_3min                                13.7      138.0      124.3      0.049
+  L_abso_x_min_3min                                -1.0       14.1       15.1      2.712
+  L_abso_x_std_3min                                 1.4       63.6       62.2      0.446
+  L_abso_x_ptp_3min                                 9.0      139.0      130.0      0.067
+  L_abso_y_mean_3min                               -1.3       47.7       49.1      2.701
+  L_abso_y_max_3min                                 0.0      161.7      161.7      0.211
+  L_abso_y_min_3min                              -119.7        0.0      119.7      2.965
+  L_abso_y_std_3min                                 0.0       70.1       70.1      0.877
+  L_abso_y_ptp_3min                                 0.0      244.5      244.5      0.206
+  L_abso_z_mean_3min                               -0.5       70.6       71.1      0.544
+  L_abso_z_max_3min                                 0.0      149.0      149.0      0.501
+  L_abso_z_min_3min                                -1.3        0.0        1.3      6.616
+  L_abso_z_std_3min                                 0.2       49.1       48.8      0.494
+  L_abso_z_ptp_3min                                 0.5      150.0      149.5      0.498
+  L_abso_x_slope_3min                              -0.7        0.7        1.4      1.126
+  L_abso_y_slope_3min                              -0.1        0.9        1.0      2.522
+  L_abso_z_slope_3min                              -0.8        0.2        1.0      0.703
+  L_abso_x_spike_cnt_3min                           0.0        9.0        9.0      0.295
+  L_abso_y_spike_cnt_3min                           0.0        8.0        8.0      0.527
+  L_abso_z_spike_cnt_3min                           0.0        4.0        4.0      0.506
+  L_abso_x_mean_5min                               10.6       75.2       64.6      0.754
+  L_abso_x_max_5min                                16.0      138.0      122.0      0.032
+  L_abso_x_min_5min                                -1.0       13.0       14.0      4.420
+  L_abso_x_std_5min                                 1.5       62.1       60.6      0.455
+  L_abso_x_ptp_5min                                11.7      139.0      127.3      0.045
+  L_abso_y_mean_5min                               -1.1       40.9       42.0      2.736
+  L_abso_y_max_5min                                 0.0      161.7      161.7      0.141
+  L_abso_y_min_5min                              -119.7        0.0      119.7      2.616
+  L_abso_y_std_5min                                 0.0       67.0       67.0      0.830
+  L_abso_y_ptp_5min                                 0.0      281.4      281.4      0.153
+  L_abso_z_mean_5min                               -0.4       72.4       72.8      0.551
+  L_abso_z_max_5min                                 0.0      149.0      149.0      0.511
+  L_abso_z_min_5min                                -1.3        0.0        1.3      6.258
+  L_abso_z_std_5min                                 0.4       49.6       49.2      0.507
+  L_abso_z_ptp_5min                                 1.0      150.0      149.0      0.509
+  L_abso_x_slope_5min                              -0.4        0.4        0.9      1.081
+  L_abso_y_slope_5min                               0.0        0.5        0.5      2.488
+  L_abso_z_slope_5min                              -0.5        0.2        0.7      0.658
+  L_abso_x_spike_cnt_5min                           0.0       13.0       13.0      0.308
+  L_abso_y_spike_cnt_5min                           0.0       11.0       11.0      0.501
+  L_abso_z_spike_cnt_5min                           0.0        6.0        6.0      0.515
+  L_abso_x_mean_10min                              10.7       67.2       56.5      0.732
+  L_abso_x_max_10min                               16.6      138.2      121.6      0.019
+  L_abso_x_min_10min                               -1.0        9.1       10.1     23.827
+  L_abso_x_std_10min                                1.9       61.0       59.1      0.471
+  L_abso_x_ptp_10min                               13.9      139.2      125.3      0.028
+  L_abso_y_mean_10min                              -1.0       34.8       35.8      2.820
+  L_abso_y_max_10min                                0.0      161.7      161.7      0.076
+  L_abso_y_min_10min                             -147.2        0.0      147.2      2.319
+  L_abso_y_std_10min                                0.0       64.3       64.3      0.821
+  L_abso_y_ptp_10min                                0.0      297.6      297.6      0.156
+  L_abso_z_mean_10min                              -0.3       69.3       69.5      0.556
+  L_abso_z_max_10min                                1.5      156.0      154.5      0.514
+  L_abso_z_min_10min                               -1.4       -0.2        1.2      5.983
+  L_abso_z_std_10min                                0.6       49.1       48.6      0.512
+  L_abso_z_ptp_10min                                1.9      157.0      155.1      0.512
+  L_abso_x_slope_10min                             -0.2        0.2        0.4      1.059
+  L_abso_y_slope_10min                              0.0        0.3        0.3      1.703
+  L_abso_z_slope_10min                             -0.2        0.1        0.4      0.623
+  L_abso_x_spike_cnt_10min                          0.0       22.0       22.0      0.294
+  L_abso_y_spike_cnt_10min                          0.0       18.0       18.0      0.489
+  L_abso_z_spike_cnt_10min                          0.0       11.0       11.0      0.520
+
+------------------------------------------------------------------------------
+【5. 斜率 slope 与计数 spike_cnt 专项(量纲极小/离散)】
+
+  slope: 24 列, range_p99 中位 0.8542, 值域 [0.003334, 850.4]
+    NaN 占比: 中位 0.2% (斜率在文件开头无前值, 计数在窗口内无数据)
+  count: 24 列, range_p99 中位 13.5, 值域 [4, 99]
+    NaN 占比: 中位 0.0% (斜率在文件开头无前值, 计数在窗口内无数据)
+
+==============================================================================
+【6. 归一化决策表: 你的场景该做哪一项】
+==============================================================================
+
+  场景A: XGBoost / LightGBM / CatBoost / 随机森林 (树模型)
+    -> 标准化(z-score): 不需要, 做了也不涨点
+    -> 归一化([0,1])  : 不需要
+    -> 物理相对化    : 建议做(见第7节), 为的是跨周期/跨机床可比, 不是为树模型
+    -> 必须处理的    : slope 列的 NaN; 常量列(已在黑名单)
+
+  场景B: LSTM / TCN / Transformer / MLP (神经网络)
+    -> 必须 z-score(或用 RobustScaler, 你的数据离群点很多)
+    -> 且 scaler 只能在 train 上 fit, 再 transform val/test
+    -> 目标 y 也要缩放(rul_hour 跨周期差 52 倍, 强烈建议换用百分比标签)
+
+  场景C: SVM(RBF) / KNN / 岭回归-Lasso / PCA / 基于距离的特征选择
+    -> 必须标准化, 否则 range 大的列完全支配距离/惩罚项
+
+  场景D: 迁移到其它车床(你的最终目标)
+    -> 必须做【分位数对齐 / per-machine 标准化】
+    -> 原因见 demo_quantile_align.py 的演示: 同一物理状态在不同床上读数差 30%
+    -> 树模型也受益: 对齐后才不会靠'绝对水平'认机床
+
+==============================================================================
+【7. 建议做的工程归一化(与模型无关, 为可比性和可迁移性)】
+==============================================================================
+
+  7.1 绝对坐标 -> 相对坐标  【必做, 优先级最高】
+      问题: L_abso_x/y/z 零点随对刀点/工件坐标系变化, 绝对值不可比
+      做法: 用滑窗内的相对位移替代绝对值, 例如
+            abso_rel = 当前值 - 该行所在滑窗(如5min)的均值
+            或: 当前值 - 本 life_cycle 首个采样值
+      注意: 只能在 train 段内计算基准, 不能用到全量统计(防泄漏)
+
+  7.2 负载 -> 相对额定负载  【建议做】
+      做法: load_norm = 原始负载 / 该轴的 P99 分位
+      理由: 不同轴(X/Y/Z/B/C)量程不同, 主轴负载还受功率标定影响
+      P99 必须用 train 段算, 存进配置文件, 推理时复用
+
+  7.3 转速 -> 相对最高转速  【建议做】
+      做法: speed_norm = L_spindle_speed / 该机床最高转速(常数)
+
+  7.4 跨分布对齐(迁移时)  【最终必做】
+      做法: 分位数映射 rank-based:
+            x_aligned = Quantile(train_machine distribution, rank of x in its own machine)
+      即: 先算 x 在自己机床历史数据中的百分位 r, 再取训练集机床的第 r 百分位值
+
+  7.5 目标变量 y  【强烈建议】
+      现状: rul_hour 跨周期量纲差 52 倍(cycle5 总寿命1.3h, cycle3 68.1h)
+      建议: 主目标改用 life_used_pct_cut (0~100, 天然归一化)
+            或 per-cycle 归一化 rul_pct = rul_hour / 该周期总寿命
+
+  7.6 退化列直接剔除  【必做, 优先级同 7.1】
+      共 4 列: L_B_servo_load_min_10min, L_B_servo_load_min_1min, L_B_servo_load_min_3min, L_B_servo_load_min_5min
+      它们连'归一化'都不配做 -- 归一化救不了没有信息的列。
+
+------------------------------------------------------------------------------
+【7.7 实证: 相对化之后, 跨周期漂移到底降了多少】
+  做法: x_rel = (x - L_abso_<轴>_min_10min) / L_abso_<轴>_ptp_10min
+        -> 把绝对坐标映射到 [0,1] 的'行程内相对位置'
+  对比同一列相对化前后的 drift_cv
+
+  列名                                 原始drift_cv           相对化后       下降幅度
+  L_abso_z_min_1min                      35.548          2.837        92%
+  L_abso_y_min_1min                      10.695          1.670        84%
+  L_abso_z_min_3min                       6.616          4.354        34%
+  L_abso_z_min_5min                       6.258          4.337        31%
+  L_abso_x_min_5min                       4.420          1.229        72%
+  L_abso_y                                3.051          1.341        56%
+  L_abso_y_min_3min                       2.965          1.380        53%
+  L_abso_y_mean_1min                      2.852          1.383        52%
+  L_abso_y_mean_10min                     2.820          1.295        54%
+  L_abso_y_mean_5min                      2.736          1.283        53%
+  L_abso_x_min_3min                       2.712          1.372        49%
+  L_abso_y_mean_3min                      2.701          1.289        52%
+  L_abso_x_min_1min                       2.632          2.252        14%
+  L_abso_y_min_5min                       2.616          1.268        52%
+  L_abso_y_std_1min                       0.997          0.768        23%
+
+  共 48 列参与对比, 其中 47 列漂移下降 (98%)
+  原始 drift_cv 中位 0.559  ->  相对化后中位 0.441
+
+==============================================================================
+【8. 可直接复制的代码】
+==============================================================================
+
+  # --- 8.1 树模型: 什么都不用做, 只补 NaN ---
+  import pandas as pd, json, sys
+  sys.path.insert(0, r'C:/abc/workBoddyHome刀具')
+  bl = json.load(open(r'C:/abc/workBoddyHome刀具/leakage_blacklist.json', encoding='utf-8'))
+  df = pd.read_csv(r'C:/abc/workBoddyHome刀具/merged_csv_20260901_160345_T2525_life_labeled_rollingfeat.csv', low_memory=False)
+  keep = bl['keep']
+  X = df[keep].apply(pd.to_numeric, errors='coerce')   # NaN 交给 XGBoost
+
+  # --- 8.2 神经网络/线性: z-score, 且只在 train 上 fit ---
+  from sklearn.preprocessing import StandardScaler
+  from ts_split import load_split
+  sp   = load_split('block')
+  Xtr  = X.iloc[sp['train']]
+  sc   = StandardScaler().fit(Xtr)                     # 只 fit train !
+  Xtr_s = sc.transform(Xtr)
+  Xva_s = sc.transform(X.iloc[sp['val']])
+  Xte_s = sc.transform(X.iloc[sp['test']])
+
+  # --- 8.3 LOCO: 每一折都要重新 fit, 否则测试周期信息泄进 scaler ---
+  loco = load_split('loco')
+  for c, s in loco.items():
+      sc_i = StandardScaler().fit(X.iloc[s['train']])
+      Xtr_i = sc_i.transform(X.iloc[s['train']])
+      Xte_i = sc_i.transform(X.iloc[s['test']])
+
+  # --- 8.4 相对坐标/相对负载(工程归一化, 树模型也建议) ---
+  for c in [c for c in keep if 'abso' in c and c.endswith('_mean_5min')]:
+      base = c.replace('_mean_5min', '_mean_10min')    # 用更长窗作基准
+      X[c + '_rel'] = X[c] - X[base]

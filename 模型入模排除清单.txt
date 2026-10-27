@@ -1,0 +1,132 @@
+T2525 滑窗特征文件 入模排除清单
+文件: C:/abc/workBoddyHome刀具/merged_csv_20260901_160345_T2525_life_labeled_rollingfeat.csv
+总列数: 363
+
+======================================================================
+【A. 绝对禁止入模 - 共 18 列】
+  理由: 目标本身 / 未来信息 / 时间代理 / 周期指纹
+    L_all_runtime
+    L_allnum
+    L_runtime
+    L_state
+    L_tool_life
+    _t
+    _time
+    _time_sec
+    change_reason
+    cycle_cover_ratio
+    elapsed_sec
+    life_cycle
+    life_remain_pct_time
+    life_used_pct_cut
+    life_used_pct_time
+    real_failure
+    rul_hour
+    rul_sec
+
+======================================================================
+【B. 建议先剔除 - 共 11 列】
+  理由: 人工后验输入 或 周期指纹(泛化杀手)
+    L_alm_msq
+    L_alm_no
+    L_geo_no
+    L_geo_x
+    L_geo_z
+    L_main_program
+    L_sub_program
+    L_tool_offset
+    L_wear_no
+    L_wear_x
+    L_wear_z
+
+======================================================================
+【C. 身份列 / 常量列 - 共 74 列】
+  理由: 全列同一值或纯身份标识, 无信息(不泄漏, 但白占内存, 建议删)
+    L_C_servo_load
+    L_C_servo_load_max_10min
+    L_C_servo_load_max_1min
+    L_C_servo_load_max_3min
+    L_C_servo_load_max_5min
+    L_C_servo_load_mean_10min
+    L_C_servo_load_mean_1min
+    L_C_servo_load_mean_3min
+    L_C_servo_load_mean_5min
+    L_C_servo_load_min_10min
+    L_C_servo_load_min_1min
+    L_C_servo_load_min_3min
+    L_C_servo_load_min_5min
+    L_C_servo_load_ptp_10min
+    L_C_servo_load_ptp_1min
+    L_C_servo_load_ptp_3min
+    L_C_servo_load_ptp_5min
+    L_C_servo_load_slope_10min
+    L_C_servo_load_slope_1min
+    L_C_servo_load_slope_3min
+    L_C_servo_load_slope_5min
+    L_C_servo_load_spike_cnt_10min
+    L_C_servo_load_spike_cnt_1min
+    L_C_servo_load_spike_cnt_3min
+    L_C_servo_load_spike_cnt_5min
+    L_C_servo_load_std_10min
+    L_C_servo_load_std_1min
+    L_C_servo_load_std_3min
+    L_C_servo_load_std_5min
+    L_alm_msq
+    L_feed_override
+    L_gearratio
+    L_geo_no
+    L_geo_x
+    L_geo_z
+    L_spindle_override
+    L_spindle_override_max_10min
+    L_spindle_override_max_1min
+    L_spindle_override_max_3min
+    L_spindle_override_max_5min
+    L_spindle_override_mean_10min
+    L_spindle_override_mean_1min
+    L_spindle_override_mean_3min
+    L_spindle_override_mean_5min
+    L_spindle_override_min_10min
+    L_spindle_override_min_1min
+    L_spindle_override_min_3min
+    L_spindle_override_min_5min
+    L_spindle_override_ptp_10min
+    L_spindle_override_ptp_1min
+    L_spindle_override_ptp_3min
+    L_spindle_override_ptp_5min
+    L_spindle_override_slope_10min
+    L_spindle_override_slope_1min
+    L_spindle_override_slope_3min
+    L_spindle_override_slope_5min
+    L_spindle_override_spike_cnt_10min
+    L_spindle_override_spike_cnt_1min
+    L_spindle_override_spike_cnt_3min
+    L_spindle_override_spike_cnt_5min
+    L_spindle_override_std_10min
+    L_spindle_override_std_1min
+    L_spindle_override_std_3min
+    L_spindle_override_std_5min
+    L_tool_number
+    L_wear_no
+    _tool_no
+    departNo
+    deviceName
+    in_life_range
+    plantNo
+    storeyNo
+    tool_model
+    tool_no
+
+======================================================================
+【D. 可入模特征 - 265 列】
+  构成: 308 个滑窗特征(去掉常量列后) + L_rate1 / L_distance / L_circle_time / L_spindle_speed_cmd 等原始工况列
+
+======================================================================
+【可复制代码】
+
+import json, pandas as pd
+bl = json.load(open(r'C:/abc/workBoddyHome刀具/leakage_blacklist.json', encoding='utf-8'))
+df = pd.read_csv(r'C:/abc/workBoddyHome刀具/merged_csv_20260901_160345_T2525_life_labeled_rollingfeat.csv', low_memory=False)
+drop = bl['hard_drop'] + bl['gray_drop'] + bl['constant_drop']
+X = df[[c for c in df.columns if c not in drop]]
+y = df['rul_hour']

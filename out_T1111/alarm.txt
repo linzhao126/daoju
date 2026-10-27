@@ -1,0 +1,10 @@
+==============================================================================
+T1111 无监督异常检测（委托 alarm_online.py）
+==============================================================================
+
+数据文件: C:\abc\workBoddyHome刀具\20260914_4152\influxdb_FanucNormalData_20260914_081959.csv
+请直接使用（mode 为 fit / score）：
+  ./.venv/Scripts/python.exe -X utf8 -W ignore alarm_online.py fit   --file "C:\abc\workBoddyHome刀具\20260914_4152\influxdb_FanucNormalData_20260914_081959.csv"
+  ./.venv/Scripts/python.exe -X utf8 -W ignore alarm_online.py score --file "C:\abc\workBoddyHome刀具\20260914_4152\influxdb_FanucNormalData_20260914_081959.csv"
+
+（该工具为通用件，T2525 已验证；T1111 专用参数如阈值应在 fit 后重校）

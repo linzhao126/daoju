@@ -1,0 +1,41 @@
+# ========== 1. 环境与缓存（必排）==========
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# ========== 2. 原始采集数据（必排，GB 级）==========
+*.csv
+influx_daily_check/daily_csv/
+20260914_4152/
+20261008/influxdb_*.csv
+*.joblib
+ts_split_indices.json
+
+# ========== 3. 运行时产物（必排，会天天变）==========
+*.db
+*.db-wal
+*.db-shm
+2ndPrediction/data/
+influx_daily_check/out_healthcheck/
+*.log
+
+# ========== 4. 临时归档（可排）==========
+_trash_*/
+_probe_archive/
+.littmp/
+out_extract/*.zip
+
+# ========== 5. 反向保留：核心结果表必须进仓库 ==========
+!out_T1111/xalign_HI.csv
+!tool_life_records.csv
+!excel_parts/tool_life_records.csv
+!t1111_call_features.csv
+!t1111_call_by_program.csv
+!2ndPrediction/out/*.csv
+
+# ========== 6. 可选：想纳入就删掉下面两行 ==========
+HTML/
+网络资料/

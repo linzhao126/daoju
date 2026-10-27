@@ -1,0 +1,30 @@
+rows = 162555
+
+===== [A] load channel quantization (distinct values) =====
+L_spindle_load : n_unique=9253  min=0 max=3.179e+04
+   top values->count: {0: 7180, 1: 15, 2: 9, 3: 16, 4: 13, 5: 17, 6: 24, 7: 34}
+L_X_servo_load : n_unique=173  min=0 max=179
+   top values->count: {0: 2, 1: 7, 2: 75, 3: 11, 4: 2, 5: 5, 6: 23, 7: 6}
+L_Y_servo_load : n_unique=60  min=0 max=59
+   top values->count: {0: 173, 1: 168, 2: 188, 3: 226, 4: 304, 5: 380, 6: 268, 7: 182}
+L_Z_servo_load : n_unique=126  min=0 max=129
+   top values->count: {0: 30, 1: 13, 2: 121, 3: 75057, 4: 76049, 5: 5600, 6: 536, 7: 511}
+L_A_servo_load : n_unique=2  min=0 max=1
+   top values->count: {0: 111002, 1: 51553}
+L_B_servo_load : n_unique=1  min=0 max=0
+   top values->count: {0: 162555}
+L_C_servo_load : n_unique=98  min=0 max=97
+   top values->count: {0: 155394, 1: 2965, 2: 669, 3: 258, 4: 160, 5: 127, 6: 108, 7: 119}
+L_E_servo_load : n_unique=162  min=0 max=212
+   top values->count: {0: 156569, 1: 967, 2: 1417, 3: 334, 4: 13, 5: 15, 6: 10, 7: 19}
+
+===== [B] is life_used_pct_time a pure wall-clock function? =====
+cycle 23 n= 27344
+  corr(life_used_pct_time, elapsed_sec) = 1.0000  (theory=1.0 => pure clock)
+  corr(life_used_pct_time, L_spindle_load) = -0.0049  (theory=0 => independent of sensor)
+  life_used_pct_time range: 0.00 ~ 99.84
+  sample (first 3 rows: time, pct, spindle_load):
+                  _time  life_used_pct_time  L_spindle_load
+2026-09-10 17:50:00.774            0.000713            6222
+2026-09-10 17:50:00.795            0.000733            4391
+2026-09-10 17:50:00.811            0.000748             962

@@ -1,0 +1,52 @@
+{
+ "source": "merged_csv_20260901_160345_T2525_life_labeled_rollingfeat.csv",
+ "n_rows": 123192,
+ "thr_warn": 0.4997,
+ "thr_crit": 0.5723,
+ "k_rows": 10,
+ "n_events": 3,
+ "events": [
+  {
+   "start": "2026-08-14 11:42:42.086000",
+   "end": "2026-08-14 11:45:33.775000",
+   "n_rows": 13,
+   "dur_sec": 171.689,
+   "peak_score": 0.559,
+   "mean_score": 0.5334,
+   "level": "WARN",
+   "row_start": 44176,
+   "row_end": 44188,
+   "life_cycle": [
+    6
+   ]
+  },
+  {
+   "start": "2026-08-14 15:00:18.147000",
+   "end": "2026-08-14 15:01:14.025000",
+   "n_rows": 10,
+   "dur_sec": 55.878,
+   "peak_score": 0.5277,
+   "mean_score": 0.507,
+   "level": "WARN",
+   "row_start": 44360,
+   "row_end": 44369,
+   "life_cycle": [
+    7
+   ]
+  },
+  {
+   "start": "2026-09-01 11:49:07.294000",
+   "end": "2026-09-01 11:49:49.146000",
+   "n_rows": 13,
+   "dur_sec": 41.852,
+   "peak_score": 0.5161,
+   "mean_score": 0.5087,
+   "level": "WARN",
+   "row_start": 122209,
+   "row_end": 122221,
+   "life_cycle": [
+    14
+   ]
+  }
+ ]
+}

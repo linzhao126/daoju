@@ -1,0 +1,12 @@
+﻿python.exe :   File "<string>", line 2
+所在位置 行:445 字符: 20
++ ... THONUTF8=1; & "C:\abc\workBoddyHome刀具\.venv\Scripts\python.exe" -X ut ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  File "<string>", line 2:String) 
+    [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    p=rC:\abc\workBoddyHome鍒€鍏穃out_T1111\influxdb_FanucNormalData_20260914_0819
+59_life_labeled.csv
+        ^
+SyntaxError: invalid syntax

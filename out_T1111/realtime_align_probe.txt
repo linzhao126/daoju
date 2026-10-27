@@ -1,0 +1,33 @@
+表头: ['', 'result', 'table', '_time', '_value', 'nName']  行数: 3030
+
+[A] 各字段条数
+   L_abso_x           505
+   L_abso_z           505
+   L_allnum           505
+   L_rate1            505
+   L_spindle_load     505
+   L_spindle_speed    505
+
+[B] 按完整时间戳精确分组 → 每组的字段数分布
+   组数 505 ；字段数分布 {6: 505}
+
+[C] 按毫秒截断分组 → 字段数分布
+   组数 504 ；字段数分布 {6: 504}
+   含全部 6 字段的毫秒组: 504 (100.0%)
+
+[D] 前 15 个毫秒组的样子
+   2026-10-19T07:54:33.520  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:33.554  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:33.570  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.742  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.755  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.760  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.764  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.767  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.798  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.809  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.817  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.820  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.823  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.832  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']
+   2026-10-19T07:54:45.833  ['L_abso_x', 'L_abso_z', 'L_allnum', 'L_rate1', 'L_spindle_load', 'L_spindle_speed']

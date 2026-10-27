@@ -1,0 +1,118 @@
+使用列: ['_time', 'life_cycle', 'L_allnum', 'L_circle_time', 'L_wear_no', 'L_wear_x', 'L_wear_z', 'L_main_program', 'L_tool_number', 'L_tool_offset']
+总行数 384595
+
+[1] 字段可用性
+  life_cycle       非空100.0%  唯一值     20  示例 [np.int64(25), np.int64(26), np.int64(27), np.int64(16)]
+  L_allnum         非空100.0%  唯一值   1685  示例 [np.int64(57341), np.int64(57342), np.int64(57343), np.int64(57344)]
+  L_circle_time    非空100.0%  唯一值   3749  示例 [np.float64(5.504), np.float64(7.136), np.float64(8.736), np.float64(10.72)]
+  L_wear_no        非空100.0%  唯一值      1  示例 [np.int64(11)]
+  L_wear_x         非空100.0%  唯一值      1  示例 [np.float64(0.0)]
+  L_wear_z         非空100.0%  唯一值      1  示例 [np.float64(0.0)]
+  L_main_program   非空100.0%  唯一值      5  示例 ['14(C5G25-02-BAR331)', '20(C5G25-03-BAR331)', '19(C5G25-03-BDF-AR421)', '11(C5G25-02-ACE-AR321)']
+  L_tool_number    非空100.0%  唯一值      1  示例 ['T1111']
+  L_tool_offset    非空100.0%  唯一值      2  示例 ['[{"no": 11, "x_wear": 0.0, "x_geo": -231.58, "z_wear": 0.0, "z_geo": -344.521}]', '[{"no": 11, "x_wear": 0.0, "x_geo": -232.82, "z_wear": 0.0, "z_geo": -344.521}]']
+
+[2] 周期数 20
+周期     起                    止                         件数     行/件  wear_no  wear_x唯一       程序
+16     2026-09-15 21:20:01  2026-09-15 21:20:32        1   134.0 [np.int64(11)]         1 ['20(C5G
+25     2026-09-14 08:18:00  2026-09-14 16:08:11       52   152.1 [np.int64(11)]         1 ['14(C5G
+26     2026-09-14 16:18:13  2026-09-15 10:53:11       94   125.9 [np.int64(11)]         1 ['14(C5G
+27     2026-09-15 11:04:10  2026-09-15 21:11:28       98   136.6 [np.int64(11)]         1 ['14(C5G
+28     2026-09-15 21:24:50  2026-09-16 16:20:23       99   136.6 [np.int64(11)]         1 ['20(C5G
+29     2026-09-16 16:41:02  2026-09-17 11:27:39      107   141.5 [np.int64(11)]         1 ['20(C5G
+30     2026-09-17 12:11:51  2026-09-17 21:22:37      109   144.7 [np.int64(11)]         1 ['20(C5G
+31     2026-09-17 21:26:54  2026-09-18 16:21:01      104   141.2 [np.int64(11)]         1 ['20(C5G
+32     2026-09-18 16:27:28  2026-09-20 11:00:37      108   138.5 [np.int64(11)]         1 ['20(C5G
+33     2026-09-20 12:13:04  2026-09-20 22:19:58      107   141.1 [np.int64(11)]         1 ['20(C5G
+34     2026-09-20 22:36:19  2026-09-21 20:07:07      117   141.5 [np.int64(11)]         1 ['19(C5G
+35     2026-09-21 20:12:10  2026-09-22 13:04:59       85   155.0 [np.int64(11)]         1 ['14(C5G
+36     2026-09-22 13:05:00  2026-09-22 23:58:35       99   140.9 [np.int64(11)]         1 ['14(C5G
+37     2026-09-23 15:14:06  2026-09-23 20:08:21       50   130.5 [np.int64(11)]         1 ['14(C5G
+38     2026-09-23 20:24:40  2026-09-26 09:47:12      197   128.3 [np.int64(11)]         1 ['14(C5G
+39     2026-09-26 10:04:44  2026-09-27 09:21:02       99   125.9 [np.int64(11)]         1 ['11(C5G
+40     2026-09-27 09:40:04  2026-09-28 10:21:08      109   131.6 [np.int64(11)]         1 ['11(C5G
+41     2026-09-28 10:38:41  2026-09-28 16:13:44       47   130.5 [np.int64(11)]         1 ['11(C5G
+42     2026-09-29 15:45:32  2026-09-30 13:19:30        1 153406.0 [np.int64(11)]         1 ['13(C5G
+45     2026-10-09 15:58:46  2026-10-09 16:11:04        3   105.3 [np.int64(11)]         1 ['11(C5G
+
+[3] 周期边界：末行 -> 首行，看哪些字段能当「换刀指纹」
+--- 16 -> 25  间隔 -2222.5 分钟
+    末: {'L_allnum': np.int64(57588), 'L_circle_time': np.float64(46.24), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(57341), 'L_circle_time': np.float64(5.504), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 25 -> 26  间隔 10.0 分钟
+    末: {'L_allnum': np.int64(57392), 'L_circle_time': np.float64(35.712), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(57393), 'L_circle_time': np.float64(2.544), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 26 -> 27  间隔 11.0 分钟
+    末: {'L_allnum': np.int64(57489), 'L_circle_time': np.float64(48.576), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(57490), 'L_circle_time': np.float64(4.688), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 27 -> 28  间隔 13.4 分钟
+    末: {'L_allnum': np.int64(57587), 'L_circle_time': np.float64(25.168), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(57589), 'L_circle_time': np.float64(4.112), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 28 -> 29  间隔 20.6 分钟
+    末: {'L_allnum': np.int64(57687), 'L_circle_time': np.float64(26.048), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(57688), 'L_circle_time': np.float64(24.736), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 29 -> 30  间隔 44.2 分钟
+    末: {'L_allnum': np.int64(57794), 'L_circle_time': np.float64(47.792), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(57795), 'L_circle_time': np.float64(17.52), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 30 -> 31  间隔 4.3 分钟
+    末: {'L_allnum': np.int64(57903), 'L_circle_time': np.float64(46.832), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(57904), 'L_circle_time': np.float64(4.976), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 31 -> 32  间隔 6.4 分钟
+    末: {'L_allnum': np.int64(58007), 'L_circle_time': np.float64(42.704), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(58008), 'L_circle_time': np.float64(15.824), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 32 -> 33  间隔 72.4 分钟
+    末: {'L_allnum': np.int64(58115), 'L_circle_time': np.float64(10.912), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(58116), 'L_circle_time': np.float64(15.472), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 33 -> 34  间隔 16.3 分钟
+    末: {'L_allnum': np.int64(58222), 'L_circle_time': np.float64(5.216), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(58223), 'L_circle_time': np.float64(21.36), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 34 -> 35  间隔 5.1 分钟
+    末: {'L_allnum': np.int64(58339), 'L_circle_time': np.float64(22.112), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(58340), 'L_circle_time': np.float64(27.552), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 35 -> 36  间隔 0.0 分钟
+    末: {'L_allnum': np.int64(58424), 'L_circle_time': np.float64(24.8), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(58424), 'L_circle_time': np.float64(24.8), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 36 -> 37  间隔 915.5 分钟
+    末: {'L_allnum': np.int64(58522), 'L_circle_time': np.float64(58.704), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(58578), 'L_circle_time': np.float64(37.6), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 37 -> 38  间隔 16.3 分钟
+    末: {'L_allnum': np.int64(58627), 'L_circle_time': np.float64(46.432), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(58628), 'L_circle_time': np.float64(3.568), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 38 -> 39  间隔 17.5 分钟
+    末: {'L_allnum': np.int64(58824), 'L_circle_time': np.float64(52.4), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(58825), 'L_circle_time': np.float64(19.072), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 39 -> 40  间隔 19.0 分钟
+    末: {'L_allnum': np.int64(58923), 'L_circle_time': np.float64(35.008), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(58924), 'L_circle_time': np.float64(20.56), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 40 -> 41  间隔 17.5 分钟
+    末: {'L_allnum': np.int64(59032), 'L_circle_time': np.float64(52.784), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(59033), 'L_circle_time': np.float64(18.96), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 41 -> 42  间隔 1411.8 分钟
+    末: {'L_allnum': np.int64(59079), 'L_circle_time': np.float64(10.992), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(59126), 'L_circle_time': np.float64(26.768), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+--- 42 -> 45  间隔 13119.3 分钟
+    末: {'L_allnum': np.int64(59126), 'L_circle_time': np.float64(44.064), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+    首: {'L_allnum': np.int64(59690), 'L_circle_time': np.float64(40.128), 'L_wear_no': np.int64(11), 'L_wear_x': np.float64(0.0), 'L_wear_z': np.float64(0.0), 'L_tool_number': 'T1111'}
+
+[4] 周期内这些字段是否恒定（能当指纹的必须恒定）
+周期       allnum  circle_t   wear_no    wear_x    wear_z   tool_no
+16            1        20         1         1         1         1
+25           52       940         1         1         1         1
+26           94      1411         1         1         1         1
+27           98      1534         1         1         1         1
+28           99      1568         1         1         1         1
+29          107      1701         1         1         1         1
+30          109      1728         1         1         1         1
+31          104      1621         1         1         1         1
+32          108      1724         1         1         1         1
+33          107      1684         1         1         1         1
+34          117      1788         1         1         1         1
+35           85      1428         1         1         1         1
+36           99      1581         1         1         1         1
+37           50       904         1         1         1         1
+38          197      2482         1         1         1         1
+39           99      1578         1         1         1         1
+40          109      1698         1         1         1         1
+41           47       872         1         1         1         1
+42            1        31         1         1         1         1
+45            3        48         1         1         1         1

@@ -1,0 +1,12 @@
+﻿used = [17, 18, 19, 20, 22, 23, 24, 25]
+missing = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 21]
+cmp = False
+---- function source (gap block) ----
+28         missing = [c for c in range(1, cmax + 1) if c not in set(used)]
+29         if missing and missing == list(range(missing[0], missing[-1] + 1)):
+30             shown = '%d鈥?d' % (missing[0], missing[-1])  # 杩炵画鍖洪棿锛屽 1鈥?6
+32             shown = str(missing[:12]) + (' 鈥? if len(missing) > 12 else '')
+33         gap_note = ('\n> **娉ㄦ剰锛氭暟鎹鐩?* 鏈瀹為檯鍙敤浜?%d 涓懆鏈燂紙缂栧彿 %d鈥?d锛夛紝'
+36                     % (len(used), cmin, cmax, shown))
+38         gap_note = '\n> 鏈浣跨敤浜嗙紪鍙?%d鈥?d 鍏?%d 涓繛缁懆鏈熴€? % (cmin, cmax, len(used))
+78     L.append(gap_note)

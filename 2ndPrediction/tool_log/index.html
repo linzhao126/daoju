@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>换刀登记 · 4152 / T1111</title>
+<style>
+:root{
+  --ink:#2C2C2A; --muted:#5F5E5A; --hint:#888780;
+  --line:#D3D1C7; --page:#F1EFE8; --card:#FFFFFF;
+  --ok:#0F6E56; --okbg:#E1F5EE;
+  --chk:#854F0B; --chkbg:#FAEEDA;
+  --sug:#993C1D; --sugbg:#FAECE7;
+  --bad:#A32D2D; --badbg:#FCEBEB;
+  --blue:#185FA5; --bluebg:#E6F1FB;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;font-size:15px}
+.app{max-width:780px;margin:0 auto;padding:12px 12px 24px}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 4px 12px}
+.top .dev{font-size:14px;font-weight:500}
+.top .dev span{color:var(--muted);font-weight:400}
+.src{font-size:12px;color:var(--hint);border:.5px solid var(--line);border-radius:999px;padding:4px 10px;background:var(--card)}
+.src.on{color:var(--ok);border-color:var(--ok)}
+
+.card{background:var(--card);border:.5px solid var(--line);border-radius:14px;padding:18px 18px 16px}
+.metric-label{font-size:13px;color:var(--muted)}
+.metric{display:flex;align-items:baseline;gap:8px;margin:2px 0 4px}
+.metric b{font-size:66px;font-weight:500;line-height:1.02;font-variant-numeric:tabular-nums}
+.metric i{font-style:normal;font-size:16px;color:var(--muted)}
+.remain{font-size:13px;color:var(--muted)}
+.remain strong{font-weight:500;color:var(--ink)}
+
+.pill{display:inline-block;font-size:12px;padding:4px 11px;border-radius:999px;border:.5px solid;margin-bottom:10px}
+.pill.ok{color:var(--ok);background:var(--okbg);border-color:var(--ok)}
+.pill.chk{color:var(--chk);background:var(--chkbg);border-color:var(--chk)}
+.pill.sug{color:var(--sug);background:var(--sugbg);border-color:var(--sug)}
+.pill.bad{color:var(--bad);background:var(--badbg);border-color:var(--bad)}
+/* cnt = 件数提示：只有件数可信，任何"该不该换"的判断都没有依据，用中性灰 */
+.pill.cnt{color:var(--blue);background:var(--bluebg);border-color:var(--blue)}
+/* 体检条：回答"到底有没有接真实数据、到底有没有在算" */
+.hb{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12px;color:var(--muted);
+    background:var(--card);border:.5px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:10px}
+.hb .dot{width:7px;height:7px;border-radius:50%;background:var(--hint);display:inline-block;margin-right:5px}
+.hb .dot.ok{background:var(--ok)} .hb .dot.idle{background:var(--chk)} .hb .dot.bad{background:var(--bad)}
+.hb b{font-weight:500;color:var(--ink)}
+.hb .sep{color:var(--line)}
+
+.track{position:relative;height:10px;border-radius:5px;background:var(--line);margin:16px 0 6px}
+.track .fill{position:absolute;left:0;top:0;height:10px;border-radius:5px;transition:width .3s}
+.axis{position:relative;height:44px}
+.axis .tick{position:absolute;top:0;transform:translateX(-50%);text-align:center;font-size:11px;color:var(--hint);white-space:nowrap}
+.axis .tick.low{top:17px}
+.axis .tick b{display:block;height:6px;width:.5px;background:var(--hint);margin:0 auto 2px}
+
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+.cell{background:#FAF9F5;border-radius:10px;padding:10px 12px}
+.cell .k{font-size:12px;color:var(--muted);line-height:1.3;min-height:2.4em}
+.cell .v{font-size:24px;font-weight:500;margin-top:2px;font-variant-numeric:tabular-nums}
+.cell .n{font-size:11px;color:var(--hint);margin-top:1px}
+.cell.min .v{color:var(--bad)}
+.cell.med .v{color:var(--ink)}
+.cell.max .v{color:var(--blue)}
+
+.sig{margin-top:14px;padding-top:12px;border-top:.5px solid var(--line)}
+.sigrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.sigrow b{font-weight:500;font-variant-numeric:tabular-nums}
+.sigrow .grant{color:var(--ok);font-weight:500}
+.sigrow .nogrant{color:var(--bad);font-weight:500}
+#hiChart{display:block;width:100%;height:52px;margin-top:8px}
+
+.acts{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:12px}
+.btn{border-radius:12px;border:.5px solid;padding:16px 14px;font-family:inherit;cursor:pointer;text-align:left;background:var(--card)}
+.btn:active{transform:translateY(1px)}
+.btn .t{font-size:19px;font-weight:500;line-height:1.2}
+.btn .s{font-size:12px;margin-top:4px;opacity:.85}
+.btn.primary{background:var(--okbg);border-color:var(--ok);color:var(--ok)}
+.btn.hold{background:var(--chkbg);border-color:var(--chk);color:var(--chk);grid-column:1/2}
+.btn.fail{background:var(--card);border-color:var(--bad);color:var(--bad);grid-column:2/3}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.mini{font-family:inherit;font-size:13px;padding:8px 12px;border:.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);cursor:pointer}
+.mini.b{color:var(--blue);border-color:var(--blue)}
+.mini:disabled{opacity:.45;cursor:default}
+
+.simbar{margin-top:12px;background:var(--card);border:.5px dashed var(--line);border-radius:12px;padding:12px}
+.simbar .h{font-size:12px;color:var(--hint);margin-bottom:8px}
+.simbar .r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.simbar .spd{display:flex;gap:4px}
+.simbar .spd .mini{padding:6px 10px;font-size:12px}
+.simbar .spd .mini.on{background:var(--bluebg);border-color:var(--blue);color:var(--blue)}
+.phys{font-size:12px;color:var(--hint);margin-top:8px;line-height:1.6}
+.phys b{color:var(--muted);font-weight:500}
+
+.logs{margin-top:14px;background:var(--card);border:.5px solid var(--line);border-radius:12px;overflow:hidden}
+.logs .hd{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:.5px solid var(--line)}
+.logs .hd span{font-size:13px;font-weight:500}
+.logs ul{list-style:none;margin:0;padding:0}
+.logs li{display:flex;gap:10px;align-items:baseline;padding:10px 14px;border-bottom:.5px solid #EFEDE6;font-size:13px}
+.logs li:last-child{border-bottom:0}
+.logs li .ty{flex:0 0 74px;font-size:12px;font-weight:500}
+.logs li .ty.new{color:var(--ok)}
+.logs li .ty.hold{color:var(--chk)}
+.logs li .ty.fail{color:var(--bad)}
+.logs li .d{flex:1;color:var(--muted)}
+.logs li .tm{font-size:11px;color:var(--hint);font-variant-numeric:tabular-nums}
+.logs li.empty{color:var(--hint);font-size:13px}
+
+.modal{position:fixed;inset:0;background:rgba(44,44,42,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:9}
+.modal.on{display:flex}
+.modal .box{background:var(--card);border-radius:14px;padding:18px;width:100%;max-width:340px}
+.modal .box p{margin:0 0 12px;font-weight:500;font-size:15px}
+.modal .opt{display:block;width:100%;text-align:left;margin-bottom:8px;padding:12px;border:.5px solid var(--line);border-radius:10px;background:var(--card);font-family:inherit;font-size:14px;cursor:pointer}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#2C2C2A;color:#fff;font-size:13px;padding:10px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:.22s}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:560px){
+  .metric b{font-size:54px}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .acts{grid-template-columns:1fr}
+  .btn.hold,.btn.fail{grid-column:auto}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="dev">设备 4152 · L 通道 · T1111 <span id="progTag">/ 程序 14</span></div>
+    <div class="src" id="srcTag">未连接</div>
+  </div>
+
+  <!-- 体检条：数据从哪来、最后一次拉到什么时候、算到第几件。这块就是回答"到底在用真数据吗" -->
+  <div class="hb" id="hb"><span class="dot"></span>正在连接后端…</div>
+
+  <div class="card">
+    <div class="pill ok" id="pill">等待数据</div>
+    <div class="metric-label">本把刀已加工</div>
+    <div class="metric"><b id="pieces">—</b><i>件</i></div>
+    <div class="remain" id="remain">点下面的「开始」把模拟数据灌进来</div>
+
+    <div class="track"><div class="fill" id="fill" style="width:0%;background:#0F6E56"></div></div>
+    <div class="axis">
+      <div class="tick" id="tMin"><b></b>最短 —</div>
+      <div class="tick" id="tMed"><b></b>中位 —</div>
+      <div class="tick low" id="tMax"><b></b>常见上限 —</div>
+    </div>
+
+    <div class="grid">
+      <div class="cell min"><div class="k">同程序最短</div><div class="v" id="gMin">—</div><div class="n" id="gMinN">风险下界</div></div>
+      <div class="cell med"><div class="k">同程序中位</div><div class="v" id="gMed">—</div><div class="n" id="gMedN">判定基准</div></div>
+      <div class="cell max"><div class="k">同程序常见上限</div><div class="v" id="gMax">—</div><div class="n" id="gMaxN">最长 —</div></div>
+      <div class="cell"><div class="k">历史最长</div><div class="v" id="gTop">—</div><div class="n" id="gTopN">—</div></div>
+    </div>
+
+    <div class="sig">
+      <div class="sigrow">
+        <span id="sigTxt">信号：等待基线建立</span>
+        <span id="sigLimit"></span>
+      </div>
+      <canvas id="hiChart" aria-label="负载指数 HI 随件数的变化曲线"></canvas>
+    </div>
+  </div>
+
+  <div class="acts">
+    <button class="btn primary" onclick="sendEvent('new')">
+      <div class="t">已换新刀</div>
+      <div class="s">主动换的，点一下即可，不用填任何东西</div>
+    </button>
+    <button class="btn hold" onclick="sendEvent('hold')">
+      <div class="t">继续加工</div>
+      <div class="s">先不换，记下你的否决</div>
+    </button>
+    <button class="btn fail" onclick="openFail()">
+      <div class="t">刀废了</div>
+      <div class="s">崩刀 / 超差</div>
+    </button>
+  </div>
+
+  <div class="row2" id="row2">
+    <button class="mini" onclick="undo()">撤销上一次</button>
+    <button class="mini b" id="btnSwitch" onclick="switchProg()">切到程序 <span id="otherProg">20</span></button>
+  </div>
+
+  <!-- 模拟器控制：只给 sim 模式用。默认隐藏，由 render() 在 source!=influx 时才显示，
+       所以真机上永远不会闪一下 -->
+  <div class="simbar" id="simBar" style="display:none">
+    <div class="h">模拟器控制（接真实采集后整块隐藏）</div>
+    <div class="r">
+      <button class="mini" id="btnRun" onclick="toggleRun()">开始</button>
+      <div class="spd">
+        <button class="mini on" data-spd="1" onclick="setSpeed(1)">1×</button>
+        <button class="mini" data-spd="3" onclick="setSpeed(3)">3×</button>
+        <button class="mini" data-spd="10" onclick="setSpeed(10)">10×</button>
+      </div>
+      <button class="mini" onclick="resetAll()">重置</button>
+    </div>
+    <div class="phys" id="phys"></div>
+  </div>
+
+  <div class="logs">
+    <div class="hd"><span>记录</span><span style="font-size:11px;color:var(--hint)" id="cnt"></span></div>
+    <ul id="logList"><li class="empty">还没有记录。</li></ul>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <p>这把刀怎么废的？</p>
+    <button class="opt" onclick="pickFail('崩刀')">崩刀</button>
+    <button class="opt" onclick="pickFail('尺寸超差')">尺寸超差</button>
+    <button class="opt" onclick="pickFail('工件表面差')">工件表面差</button>
+    <button class="opt" onclick="pickFail('其他')">其他</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const TXT = {ok:"状态正常", chk:"到复核点了", sug:"建议换刀", bad:"已过中位寿命，必须换",
+             cnt:"件数提示 · 暂不做换刀判定"};
+let last = null;
+
+async function api(url, body){
+  const opt = body === undefined ? {cache:"no-store"} :
+    {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)};
+  const r = await fetch(url, opt);
+  return r.json();
+}
+
+async function tick(){
+  try{
+    const d = await api("/api/state");
+    $("srcTag").textContent = "SQLite · 实时";
+    $("srcTag").classList.add("on");
+    if(!d.ok){ showEmpty(d.msg || "等待数据"); return; }
+    render(d);
+  }catch(e){
+    $("srcTag").textContent = "未连接后端";
+    $("srcTag").classList.remove("on");
+    $("remain").textContent = "连不上后端：请先在 tool_log 目录运行 python server.py";
+  }
+}
+
+function showEmpty(msg){
+  $("pill").className = "pill ok";
+  $("pill").textContent = "等待数据";
+  $("remain").textContent = msg;
+  $("hb").innerHTML = '<span><span class="dot idle"></span>' + msg + '</span>';
+}
+
+// 体检条：一眼回答"数据是不是真的、有没有在算"
+// 这里刻意把"没在算"和"没在切削"分开 —— T1111 只占整条流 8.9% 的时间，
+// 它不切削时件数本来就不涨，不能当成故障。
+function renderHB(d){
+  const el = $("hb");
+  const ig = d.ingest;
+
+  if(d.source !== "influx"){
+    el.innerHTML = '<span><span class="dot"></span>数据源 <b>模拟器</b>（演示库 tool_sim.db，不碰真实数据）</span>' +
+      '<span class="sep">|</span><span>已封口 <b>' + d.pieces_total + '</b> 件</span>' +
+      '<span class="sep">|</span><span>原始行 <b>' + Number(d.raw_rows).toLocaleString() + '</b></span>';
+    return;
+  }
+  if(!ig){
+    el.innerHTML = '<span><span class="dot bad"></span>采集器未启动</span>';
+    return;
+  }
+
+  const lag = (ig.lag_sec === undefined ? null : ig.lag_sec);
+  let word = "正在计算", cls = "ok";
+  if(ig.n_fail > 0 && (lag === null || lag > 180)){ word = "拉取异常"; cls = "bad"; }
+  else if(lag !== null && lag > 180){ word = "连接正常 · 暂无新数据（这把刀没在切削）"; cls = "idle"; }
+
+  const lagTxt = lag === null ? "—" : (lag < 90 ? Math.round(lag) + " 秒" : Math.round(lag / 60) + " 分钟");
+  let okTxt = "—";
+  try{ okTxt = ig.last_ok ? new Date(ig.last_ok).toLocaleTimeString("zh-CN", {hour12:false}) : "—"; }catch(e){}
+
+  el.innerHTML =
+    '<span><span class="dot ' + cls + '"></span>' + word + '</span>' +
+    '<span class="sep">|</span><span>源 <b>' + (ig.tool || "T1111") + '</b> @ 设备 ' + (ig.device || "4152") + '</span>' +
+    '<span class="sep">|</span><span>轮询 <b>' + ig.n_poll + '</b> 次 · 失败 <b>' + ig.n_fail + '</b></span>' +
+    '<span class="sep">|</span><span>最后拉到 <b>' + okTxt + '</b>（滞后 ' + lagTxt + '）</span>' +
+    '<span class="sep">|</span><span>已封口 <b>' + d.pieces_total + '</b> 件 · 曲线 <b>' + d.n_curve + '</b></span>' +
+    // 原来写在模拟器那块里的"件数从哪算起"，藏掉那块后搬到这里，不然信息就丢了
+    '<span class="sep">|</span><span>本把刀 ' +
+      (d.base_src === "cold" ? '冷启动（没人点过「已换新刀」）→ 件数只当下限' : '从「已换新刀」起算') +
+      ' · 历史换刀 <b>' + (d.n_hist || 0) + '</b> 条' + (d.judge_ok ? '' : '（不足 ' + d.min_n_p85 + ' 条）') + '</span>';
+}
+
+function render(d){
+  last = d;
+  const used = d.used, m0 = d.m0, b = d.b, h = d.h, p85 = d.p85,
+        hmin = d.hmin, hmax = d.hmax, nH = d.n_hist || 0;
+  const hasM0 = (m0 !== null && m0 !== undefined);   // 中位寿命是否算得出来
+  const DASH = "—";
+
+  $("progTag").textContent = "/ 程序 " + d.prog;
+  $("otherProg").textContent = d.prog === 14 ? "20" : "14";
+
+  // 冷启动（从没人点过"换新刀"）时，这个数是"库里该程序的件数"，
+  // 系统无从知道中间是否真换过刀 → 只能当下限，显示 ≥N
+  $("pieces").textContent = (d.base_src === "cold" ? "≥" + used : used);
+
+  const pill = $("pill");
+  pill.className = "pill " + d.state;
+  pill.textContent = TXT[d.state] || d.state;
+
+  const color = {ok:"#0F6E56", chk:"#854F0B", sug:"#993C1D", bad:"#A32D2D", cnt:"#185FA5"}[d.state];
+  $("fill").style.background = color;
+
+  // ---- 说明文字：三种情况走三条不同的路，措辞不能混
+  if(!hasM0){
+    // 完全没有历史：明说"经验值"，不能让人以为这是算出来的
+    $("remain").innerHTML = "该程序 <b>0</b> 条历史换刀记录 · 暂以经验值 <b>" + d.exp_m0 +
+      "</b> 件作提示线（<b>不是判定依据</b>）→ 只按件数提醒，不判断该不该换";
+  }else if(!d.judge_ok){
+    $("remain").innerHTML = "历史只有 <b>" + nH + "</b> 条（不足 " + d.min_n_p85 +
+      " 条）· 中位 " + m0 + " 件可参考，<b>不做换刀判定</b>";
+  }else if(d.state === "ok"){
+    $("remain").innerHTML = "距复核点还有 <strong>" + Math.max(0, b - used) + "</strong> 件（复核点 " + b + " 件）";
+  }else if(d.state === "chk"){
+    $("remain").innerHTML = "已到复核点，看一眼再决定 · 距建议换刀还有 <strong>" + Math.max(0, h - used) + "</strong> 件";
+  }else if(d.state === "sug"){
+    $("remain").innerHTML = "建议换刀 · 还剩 <strong>" + Math.max(0, m0 - used) + "</strong> 件到中位寿命";
+  }else{
+    $("remain").innerHTML = "已超过同程序中位寿命 <strong>" + m0 + "</strong> 件。常见上限 " + p85 + " 是历史统计，不是该等的目标";
+  }
+
+  // ---- 四格：样本不足时必须显示「—」，不能拿兜底值冒充
+  $("gMin").textContent = hmin === null ? DASH : hmin;
+  $("gMed").textContent = m0 === null ? DASH : m0;
+  $("gMax").textContent = p85 === null ? DASH : p85;
+  $("gTop").textContent = hmax === null ? DASH : hmax;
+  $("gMinN").textContent = hmin === null ? "需 ≥" + d.min_n_basic + " 条历史" : "风险下界";
+  $("gMedN").textContent = m0 === null ? "需 ≥" + d.min_n_basic + " 条历史" : "判定基准";
+  $("gMaxN").textContent = p85 === null ? "需 ≥" + d.min_n_p85 + " 条历史" : ("最长 " + hmax + " · " + nH + " 把");
+  $("gTopN").textContent = hmax === null ? "需 ≥" + d.min_n_basic + " 条历史" : (nH + " 把里最长");
+
+  // ---- 刻度：没有标定量就整条轴都不画，避免"看起来有依据"
+  const span = (hasM0 && p85 !== null) ? Math.max(m0 * 1.15, p85 * 1.2)
+             : Math.max(used * 1.25, d.exp_m0 || 100);
+  $("fill").style.width = Math.min(100, used / span * 100) + "%";
+
+  function tick(id, val, label){
+    const el = $(id);
+    if(!hasM0 || val === null || val === undefined){ el.style.display = "none"; return null; }
+    el.style.display = "block";
+    el.style.left = Math.min(96, val / span * 100) + "%";
+    el.innerHTML = "<b></b>" + label + val;
+    return el;
+  }
+  tick("tMin", hmin, "最短 ");
+  tick("tMed", m0, "中位 ");
+  const tMax = tick("tMax", p85, "常见上限 ");
+  if(tMax && !((p85 - m0) / m0 > 0.05)) tMax.style.display = "none";
+
+  if(d.hi === null){
+    $("sigTxt").textContent = "信号：基线建立中（已 " + used + " / 20 件，前 20 件用来定这把新刀的水平）";
+    $("sigLimit").textContent = "";
+  }else{
+    const pct = (d.hi - 1) * 100;
+    const dir = pct >= 0 ? "高" : "低";
+    $("sigTxt").innerHTML = "信号：HI <b>" + d.hi.toFixed(3) + "</b>（比新刀 " + dir + " <b>" +
+      Math.abs(pct).toFixed(1) + "%</b>）";
+    const g = $("sigLimit");
+    if(!d.judge_ok){
+      // 没有标定过的 M0 → 延长许可这一步根本没有依据，不能当真
+      g.className = "";
+      g.textContent = "M0 未标定 → 信号仅供参考，不参与换刀判断";
+    }else if(d.granted === null){
+      g.className = "";
+      g.textContent = "到第 " + b + " 件评估";
+    }else if(d.granted){
+      g.className = "grant";
+      g.textContent = "已获延长许可 → 可用到 " + d.limit + " 件";
+    }else{
+      g.className = "nogrant";
+      g.textContent = "信号未确认 → 第 " + d.limit + " 件就换";
+    }
+  }
+  drawHI(d.hi_series);
+
+  const isInflux = d.source === "influx";
+  // 真实采集模式下整块模拟器控制直接隐藏（不是禁用）：页面上不该出现"开始 / 1×3×10× / 重置"，
+  // 否则值班的人会以为那是能按的真按钮。原来写在这块里的真实模式说明，已搬进体检条 renderHB()。
+  $("simBar").style.display = isInflux ? "none" : "";
+  // 「切到程序」也是模拟器专属：真实模式下程序号由 pieces 里最新一件决定，
+  // 点了只会弹一个什么都不改的提示 → 一并藏掉，让"撤销"占满整行
+  $("btnSwitch").style.display = isInflux ? "none" : "";
+  $("row2").style.gridTemplateColumns = isInflux ? "1fr" : "";
+  if (!isInflux) {
+    $("btnRun").disabled = false;
+    $("btnRun").textContent = d.sim.running ? "暂停" : "开始";
+    document.querySelectorAll(".spd .mini").forEach(el => {
+      el.classList.toggle("on", Number(el.dataset.spd) === Number(d.sim.speed));
+    });
+    $("phys").innerHTML = "物理真值（仅演示可见）：这把刀已用 <b>" + d.sim.phys_life + " / " + d.sim.phys_limit +
+      "</b> 件 · 已发生物理换刀 <b>" + d.sim.phys_changes + "</b> 次 · 系统并不知情，靠你点按钮告诉它";
+  }
+  renderHB(d);
+
+  $("cnt").textContent = "原始行 " + d.raw_rows.toLocaleString() + " · 件 " + d.pieces_total +
+    (d.n_invalid ? " · 已剔除 " + d.n_invalid + " 条疑似漏记" : "");
+  const ul = $("logList");
+  if(!d.events.length){
+    ul.innerHTML = '<li class="empty">还没有记录。换刀时点上面三个按钮中的一个。</li>';
+  }else{
+    ul.innerHTML = d.events.map(e => {
+      const lb = {new:"换新刀", hold:"继续加工", fail:"刀废了"}[e.event] || e.event;
+      const detail = e.event === "fail"
+        ? (e.reason + " · 用了 " + e.pieces + " 件")
+        : ("用了 " + e.pieces + " 件 · 当时 " + (TXT[e.state] || e.state));
+      return '<li><span class="ty ' + e.event + '">' + lb + '</span><span class="d">' + detail +
+             '</span><span class="tm">' + String(e.ts).slice(5,16) + '</span></li>';
+    }).join("");
+  }
+}
+
+function drawHI(series){
+  const c = $("hiChart");
+  const w = c.clientWidth || 600, h = 52;
+  const dpr = window.devicePixelRatio || 1;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  if(!series || series.length < 3){
+    g.fillStyle = "#888780"; g.font = "11px -apple-system,sans-serif";
+    g.fillText("数据积累中 —— 至少要 20 件才有基线", 2, 30);
+    return;
+  }
+  let lo = Math.min(1, ...series), hi = Math.max(1, ...series);
+  const pad = Math.max((hi - lo) * 0.18, 0.004);
+  lo -= pad; hi += pad;
+  const yOf = v => h - 4 - (v - lo) / (hi - lo) * (h - 8);
+
+  g.strokeStyle = "#D3D1C7"; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0, yOf(1)); g.lineTo(w, yOf(1)); g.stroke();
+
+  g.strokeStyle = "#185FA5"; g.lineWidth = 1.6; g.lineJoin = "round";
+  g.beginPath();
+  series.forEach((v, i) => {
+    const x = i / (series.length - 1 || 1) * (w - 2) + 1;
+    i ? g.lineTo(x, yOf(v)) : g.moveTo(x, yOf(v));
+  });
+  g.stroke();
+
+  g.fillStyle = "#888780"; g.font = "10px -apple-system,sans-serif";
+  g.fillText("1.000", 2, Math.max(9, yOf(1) - 2));
+}
+
+async function sendEvent(ev, reason){
+  const r = await api("/api/event", {event:ev, reason:reason || ""});
+  if(!r.ok){ toast(r.msg || "操作失败"); return; }
+  if(r.warn){ toast(r.warn, 5000); }
+  else{
+    toast(ev === "new" ? "已记下：换新刀，计数从 0 开始" :
+          ev === "hold" ? "已记下：继续加工" : "已记下：刀废了");
+  }
+  tick();
+}
+function openFail(){ $("modal").classList.add("on"); }
+function closeFail(){ $("modal").classList.remove("on"); }
+function pickFail(r){ closeFail(); sendEvent("fail", r); }
+
+async function undo(){
+  const r = await api("/api/undo", {});
+  toast(r.msg || (r.ok ? "已撤销" : "没有可撤销的记录"));
+  tick();
+}
+async function toggleRun(){
+  await api("/api/sim", {action: last && last.sim.running ? "stop" : "start"});
+  tick();
+}
+async function setSpeed(s){ await api("/api/sim", {action:"speed", speed:s}); tick(); }
+async function resetAll(){ await api("/api/sim", {action:"reset"}); toast("已重置"); tick(); }
+async function switchProg(){
+  const p = last && last.prog === 14 ? 20 : 14;
+  await api("/api/sim", {action:"prog", prog:p});
+  toast("已切到程序 " + p);
+  tick();
+}
+
+let tt = null;
+function toast(msg, ms){
+  const el = $("toast");
+  el.textContent = msg;
+  el.classList.add("on");
+  clearTimeout(tt);
+  tt = setTimeout(() => el.classList.remove("on"), ms || 2200);
+}
+
+$("modal").addEventListener("click", e => { if(e.target.id === "modal") closeFail(); });
+window.addEventListener("resize", () => { if(last) drawHI(last.hi_series); });
+
+tick();
+setInterval(tick, 700);
+</script>
+</body>
+</html>

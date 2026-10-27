@@ -1,0 +1,1 @@
+C:\Users\C12643\.workbuddy\binaries\python\envs\default\Scripts\python.exe: can't open file 'C:\\abc\\workBoddyHome刀具\\diag_trend.py': [Errno 2] No such file or directory

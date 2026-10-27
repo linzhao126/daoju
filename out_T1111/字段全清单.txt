@@ -1,0 +1,54 @@
+列数 53
+0    _time                            非空100.0% 唯一 5000  ['2026-09-14 08:18:00.365', '2026-09-14 08:18:00.390', '2026
+1    departNo                         非空100.0% 唯一    1  [np.int64(5)]
+2    deviceName                       非空100.0% 唯一    1  [np.int64(4152)]
+3    plantNo                          非空100.0% 唯一    1  [np.int64(3)]
+4    storeyNo                         非空100.0% 唯一    1  [np.int64(1)]
+5    L_A_servo_load                   非空100.0% 唯一    2  [np.int64(1), np.int64(0)]
+6    L_B_servo_load                   非空100.0% 唯一    1  [np.int64(0)]
+7    L_C_servo_load                   非空100.0% 唯一   60  [np.int64(0), np.int64(36), np.int64(10)]
+8    L_E_servo_load                   非空100.0% 唯一   44  [np.int64(52), np.int64(23), np.int64(19)]
+9    L_X_servo_load                   非空100.0% 唯一  101  [np.int64(34), np.int64(35), np.int64(30)]
+10   L_Y_servo_load                   非空100.0% 唯一   26  [np.int64(15), np.int64(23), np.int64(22)]
+11   L_Z_servo_load                   非空100.0% 唯一   45  [np.int64(4), np.int64(129), np.int64(59)]
+12   L_abso_x                         非空100.0% 唯一 1515  [np.float64(231.83), np.float64(205.18), np.float64(109.18)]
+13   L_abso_y                         非空100.0% 唯一   31  [np.float64(0.045), np.float64(0.033), np.float64(0.0)]
+14   L_abso_z                         非空100.0% 唯一   77  [np.float64(183.391), np.float64(155.521), np.float64(59.521
+15   L_all_runtime                    非空100.0% 唯一   51  [np.int64(22970460), np.int64(22971600), np.int64(22972920)]
+16   L_allnum                         非空100.0% 唯一   33  [np.int64(57341), np.int64(57342), np.int64(57343)]
+17   L_alm_no                         非空100.0% 唯一    1  [np.int64(0)]
+18   L_circle_time                    非空100.0% 唯一  626  [np.float64(5.504), np.float64(7.136), np.float64(8.736)]
+19   L_distance                       非空100.0% 唯一  298  [np.int64(0), np.int64(-1855), np.int64(-1481)]
+20   L_feed_override                  非空100.0% 唯一    1  [np.int64(100)]
+21   L_gearratio                      非空100.0% 唯一    1  [np.float64(23.52)]
+22   L_main_program                   非空100.0% 唯一    1  ['14(C5G25-02-BAR331)']
+23   L_rate1                          非空100.0% 唯一  183  [np.int64(0), np.int64(18000), np.int64(7714)]
+24   L_runtime                        非空100.0% 唯一  679  [np.float64(14852988.272), np.float64(14852989.92), np.float
+25   L_spindle_load                   非空100.0% 唯一 2391  [np.int64(5820), np.int64(0), np.int64(47)]
+26   L_spindle_override               非空100.0% 唯一    1  [np.int64(100)]
+27   L_spindle_speed                  非空100.0% 唯一 1049  [np.int64(1), np.int64(0), np.int64(2)]
+28   L_spindle_speed_cmd              非空100.0% 唯一    5  [np.int64(200), np.int64(2000), np.int64(0)]
+29   L_state                          非空100.0% 唯一    1  [np.int64(3)]
+30   L_sub_program                    非空  0.0% 唯一    0  []
+31   L_tool_number                    非空100.0% 唯一    1  ['T1111']
+32   L_tool_offset                    非空100.0% 唯一    1  ['[{"no": 11, "x_wear": 0.0, "x_geo": -231.58, "z_wear": 0.0
+33   L_wear_no                        非空100.0% 唯一    1  [np.int64(11)]
+34   L_wear_x                         非空100.0% 唯一    1  [np.float64(0.0)]
+35   L_wear_z                         非空100.0% 唯一    1  [np.float64(0.0)]
+36   L_geo_no                         非空100.0% 唯一    1  [np.int64(11)]
+37   L_geo_x                          非空100.0% 唯一    1  [np.float64(-231.58)]
+38   L_geo_z                          非空100.0% 唯一    1  [np.float64(-344.521)]
+39   L_alm_msq                        非空  0.0% 唯一    0  []
+40   _t                               非空100.0% 唯一 5000  ['2026-09-14 08:18:00.365', '2026-09-14 08:18:00.390', '2026
+41   life_used_pct_time               非空100.0% 唯一 5000  [np.float64(69.97494168787108), np.float64(69.97496819338423
+42   life_remain_pct_time             非空100.0% 唯一 5000  [np.float64(30.02505831212892), np.float64(30.02503180661577
+43   rul_sec                          非空100.0% 唯一 5000  [np.float64(28319.635), np.float64(28319.61), np.float64(283
+44   rul_hour                         非空100.0% 唯一 5000  [np.float64(7.866565277777777), np.float64(7.866558333333334
+45   elapsed_sec                      非空100.0% 唯一 5000  [np.float64(66000.365), np.float64(66000.39), np.float64(660
+46   life_used_pct_cut                非空  0.0% 唯一    0  []
+47   cycle_cover_ratio                非空100.0% 唯一    1  [np.float64(0.299097625106022)]
+48   life_cycle                       非空100.0% 唯一    1  [np.int64(25)]
+49   tool_model                       非空100.0% 唯一    1  ['B1340']
+50   in_life_range                    非空100.0% 唯一    1  [np.True_]
+51   change_reason                    非空100.0% 唯一    1  ['刀尖破损 刀寿120']
+52   real_failure                     非空100.0% 唯一    1  ['是']
