@@ -1,0 +1,63 @@
+# 本轮执行命令（可复制重跑）
+
+环境：Windows 10 + Git Bash，Python 3.14（`C:/abc/workBoddyHome刀具/.venv`）
+日期：2026-10-27
+工作目录：`C:/abc/workBoddyHome刀具/20261026/恢复/20261027`
+
+```bash
+cd "C:/abc/workBoddyHome刀具/20261026/恢复/20261027"
+PY="C:/abc/workBoddyHome刀具/.venv/Scripts/python.exe"
+
+# --- 建目录树 ---
+mkdir -p 01_交付清单与版本指纹 02_源代码与配置/source 02_源代码与配置/schema \
+         02_源代码与配置/configs 03_原始数据与标签/tool_db_snapshot \
+         03_原始数据与标签/raw_or_traceable 04_RUL复现实验/reproducible_scripts \
+         05_HI与换刀规则审计 06_崩刃A专项/chipping_cases \
+         07_未解决问题与最小裁决 08_本轮可复现执行日志/stdout_stderr 09_repro_scripts
+
+# --- S1 生命周期与标签审计 ---
+PYTHONUTF8=1 $PY 09_repro_scripts/s01_build_audit.py > 08_本轮可复现执行日志/stdout_stderr/s01_build_audit.log 2>&1
+
+# --- S2 复现原负结果（LOCO） ---
+PYTHONUTF8=1 $PY 09_repro_scripts/s02_repro_loco.py     > 08_本轮可复现执行日志/stdout_stderr/s02_repro_loco.log 2>&1
+
+# --- S3 条件生存基线 + M1-new（依赖 S2） ---
+PYTHONUTF8=1 $PY 09_repro_scripts/s03_conditional.py    > 08_本轮可复现执行日志/stdout_stderr/s03_conditional.log 2>&1
+
+# --- S4 线上/离线 HI 一致性 ---
+PYTHONUTF8=1 $PY 09_repro_scripts/s04_hi_parity.py      > 08_本轮可复现执行日志/stdout_stderr/s04_hi_parity.log 2>&1
+
+# --- S5 线上管道重算全周期 HI（384k 行，约 60~90 s） ---
+PYTHONUTF8=1 $PY 09_repro_scripts/s05_online_hi_signal.py > 08_本轮可复现执行日志/stdout_stderr/s05_online_hi_signal.log 2>&1
+
+# --- S6 C2 策略逐刀回放（依赖 S5） ---
+PYTHONUTF8=1 $PY 09_repro_scripts/s06_decision_replay.py  > 08_本轮可复现执行日志/stdout_stderr/s06_decision_replay.log 2>&1
+
+# --- S7 崩刃 A（依赖 S1） ---
+PYTHONUTF8=1 $PY 09_repro_scripts/s07_chipping.py         > 08_本轮可复现执行日志/stdout_stderr/s07_chipping.log 2>&1
+
+# --- S8 逐刀案例册 ---
+PYTHONUTF8=1 $PY 09_repro_scripts/s08_report.py           > 08_本轮可复现执行日志/stdout_stderr/s08_report.log 2>&1
+
+# --- S9 打包（依赖图 / 哈希 / 提取 / 快照） ---
+PYTHONUTF8=1 $PY 09_repro_scripts/s09_package.py          > 08_本轮可复现执行日志/stdout_stderr/s09_package.log 2>&1
+
+# --- 脚本副本归位 ---
+cp 09_repro_scripts/*.py 04_RUL复现实验/reproducible_scripts/
+```
+
+## 本轮修过的三处实现错误（记录，避免重复踩）
+
+| # | 现象 | 原因 | 修法 |
+|---|---|---|---|
+| 1 | `s01` 输出写到了 `恢复/03_...` 而不是 `恢复/20261027/03_...` | `OUT` 用了两级 `..` | 改为一级 |
+| 2 | 台账顺序 32 匹配失败 | 时间写成 `2026/9/18/16:26`（日期与时间之间用斜杠） | 加正则 `(\d{4})-(\d{1,2})-(\d{1,2})-(\d{1,2}:\d{2}) → \1-\2-\3 \4` |
+| 3 | 崩刃检测健康段误报 80%，\|z\| 只有 0.1 | `MAD(v)` 在平滑序列上趋近 0，z 爆表后 CUSUM 瞬间越限 | 改用 `MAD(一阶差分)/√2` + 绝对下限 1% |
+| 4 | `s03` 的 M0-B 与 M0-A 完全相同 | 训练池误用"活过 N 的刀"，漏掉了在 N 之前就死掉的短刀 | 训练池改为"同程序全部其他周期" |
+| 5 | `s08` 报 `ImportError: tabulate` | `to_markdown` 依赖 tabulate，venv 未装 | 自带 `to_md()` |
+
+## 未执行（按指示）
+
+```text
+git init / git add / git commit —— 等待单独处理
+```
