@@ -47,13 +47,12 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 
 # ---------------------------------------------------------------- 连接配置
-INFLUX_URL = os.environ.get("INFLUX_URL", "http://10.196.32.63:8086")
-INFLUX_ORG = os.environ.get("INFLUX_ORG", "s")
-INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "iotdata")
+INFLUX_URL = os.environ.get("INFLUX_URL", "")
+INFLUX_ORG = os.environ.get("INFLUX_ORG", "")
+INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "")
 # token 优先取环境变量；这里的默认值只为本机调试，不要提交到版本库
 INFLUX_TOKEN = os.environ.get(
-    "INFLUX_TOKEN",
-    "tOpdgdFM2DBCY6-ZWZUn1s5bigxwmcrNGRNdNvHy79BSJq_yF9gFxHykKyUWRTWhCOu02SmJQmKEeaurU77hPw==",
+    
 )
 
 DEVICE = os.environ.get("INFLUX_DEVICE", "4152")   # 只取这台设备
