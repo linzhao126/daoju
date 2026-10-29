@@ -36,12 +36,17 @@ import datetime as dt
 import numpy as np
 import pandas as pd
 
-ROOT = r'C:/abc/workBoddyHome刀具'
-OUT = os.path.join(ROOT, '20261026', '恢复', '20261027', '15_台账真值检验')
+HERE = os.path.dirname(os.path.abspath(__file__))
+BASE = os.path.abspath(os.path.join(HERE, '..'))                 # .../20261027
+ROOT = os.path.abspath(os.path.join(BASE, '..', '..', '..'))      # 仓库根
+OUT = os.path.join(BASE, '15_台账真值检验')                        # 相对本文件定位，改名目录不再写错
 os.makedirs(OUT, exist_ok=True)
 
 RAW = os.path.join(ROOT, 'influxdb_4152_FanucNormalData_20261012_104944_L_T1111_T1111_life_labeled.csv')
-XLS = os.path.join(ROOT, '三厂换刀记录.xlsx')
+# 台账（P1-07：已获 0 号位授权随包公开）→ 包内副本优先，仓库根只作回退
+XLS = os.path.join(BASE, '15_台账真值检验', 'input', '三厂换刀记录.xlsx')
+if not os.path.exists(XLS):
+    XLS = os.path.join(ROOT, '三厂换刀记录.xlsx')
 HI = os.path.join(ROOT, 'out_T1111', 'xalign_HI.csv')
 
 # 4 个被存成文本的时间格（原表格式：yyyy/m/d h:mm;@，值为字符串故格式不生效）
@@ -148,27 +153,40 @@ def auc_score(pos, neg):
     return float((r_pos - len(pos) * (len(pos) + 1) / 2) / (len(pos) * len(neg)))
 
 
-def main():
+def main(blank_cycle=False, out_dir=None):
     log = []
     p = log.append
 
+    out = out_dir if out_dir else OUT
+    os.makedirs(out, exist_ok=True)
     L = load_ledger()
     d = load_raw()
+    if blank_cycle:
+        # Test-E 用：把 life_cycle 整列置零，证明指标不依赖它
+        d = d.copy()
+        d['life_cycle'] = 0
     p('台账：%d 行，S 解析失败 %d，E 解析失败 %d（末行 EndTime 空属正常）'
       % (len(L), L.S.isna().sum(), L.E.isna().sum()))
     p('数据：%d 行，%s → %s，%d 个 life_cycle'
       % (len(d), d.t.min(), d.t.max(), d.life_cycle.nunique()))
 
-    # 真值 = 台账 EndTime，且该周期在数据里**确实有件**
-    # ⚠ 第一版只按时间窗筛，把 c43/c44 也算了进来（它们在时间窗内但数据里没有周期）
-    #    → 真值 21、召回率算出 581%（同一真值被多个断点匹配）。两个都修掉。
-    have_cyc = set(int(x) for x in d.life_cycle.unique())
-    L['in_data'] = L.E.notna() & L.cycle.isin(have_cyc)
+    # 真值 = 台账 EndTime，且该**台账窗内确实有数据行**
+    # ⚠ Test-E 要求：不得用 life_cycle 判断"数据里有这个周期"。改用纯时间判定 ——
+    #   台账窗 [S, E) 内若一行数据都没有（如 10-01~10-13 整机零数据），则该换刀不可评估。
+    t_arr = d['t'].values
+    n_in_win = []
+    for _, r in L.iterrows():
+        if pd.isna(r['S']) or pd.isna(r['E']):
+            n_in_win.append(0)
+        else:
+            n_in_win.append(int(((t_arr >= r['S']) & (t_arr < r['E'])).sum()))
+    L['n_rows_in_win'] = n_in_win
+    L['in_data'] = L['E'].notna() & (L['n_rows_in_win'] > 0)
     truth = L[L.in_data].copy()
-    p('真值（台账 EndTime 且数据里有该周期）：%d 条，周期 %s'
+    p('真值（台账 EndTime 且在窗内有数据）：%d 条，周期 %s'
       % (len(truth), sorted(truth.cycle.tolist())))
-    miss_cyc = sorted(set(L.cycle) - have_cyc)
-    p('台账有、数据无的周期：%s（共 %d 个，无法评估）' % (miss_cyc, len(miss_cyc)))
+    miss_cyc = sorted(set(int(x) for x in L.loc[L.E.notna() & ~L.in_data, 'cycle']))
+    p('台账有换刀、但窗内无数据的周期：%s（共 %d 个，无法评估）' % (miss_cyc, len(miss_cyc)))
 
     # ---------------- Q1：断点 vs 真换刀
     B = find_breaks(d)
@@ -176,14 +194,17 @@ def main():
       % (GAP_MIN_S, len(B), int(B.cross_cycle.sum()), int((~B.cross_cycle).sum())))
 
     # 每个断点匹配最近的真值
-    E_sorted = truth.E.dropna().sort_values().values
+    # ⚠ 排序后必须同步取 cycle：原版 E_sorted 排了序、cycle.values 没排 → 周期错配
+    ts_truth = truth.dropna(subset=['E']).sort_values('E')
+    E_sorted = ts_truth['E'].values
+    CYC_SORTED = ts_truth['cycle'].values
     if len(E_sorted):
         dmin, near = [], []
         for bt in B.break_time.values:
             dif = (E_sorted - bt) / np.timedelta64(1, 's')
             k = int(np.argmin(np.abs(dif)))
             dmin.append(float(dif[k]) / 60.0)
-            near.append(int(truth.cycle.values[k]) if abs(dif[k]) / 60.0 <= TOL_MIN else 0)
+            near.append(int(CYC_SORTED[k]) if abs(dif[k]) / 60.0 <= TOL_MIN else 0)
         B['diff_to_truth_min'] = dmin
         B['truth_cycle'] = near
         B['is_true_switch'] = (np.abs(np.array(dmin)) <= TOL_MIN).astype(int)
@@ -193,7 +214,7 @@ def main():
         B['is_true_switch'] = 0
 
     B = B.sort_values('break_time')
-    B.to_csv(os.path.join(OUT, 'switch_gap_candidates.csv'), index=False, encoding='utf-8-sig')
+    B.to_csv(os.path.join(out, 'switch_gap_candidates.csv'), index=False, encoding='utf-8-sig')
 
     # ---- 真值侧：每个真值对应的「最近断点」在换刀前多少分钟
     # 这一列回答的是"数据是否在换刀前就断了"，而不是"能不能检出换刀"
@@ -216,7 +237,7 @@ def main():
                               stop_before_switch_min=abs(float(before[k])) / 60.0,
                               data_has_piece='YES'))
     T = pd.DataFrame(per_truth)
-    T.to_csv(os.path.join(OUT, 'truth_nearest_break.csv'), index=False, encoding='utf-8-sig')
+    T.to_csv(os.path.join(out, 'truth_nearest_break.csv'), index=False, encoding='utf-8-sig')
     for _, r in T.iterrows():
         v = r.stop_before_switch_min
         p('  c%-4d %-4s 数据在换刀前 %s 分钟停止'
@@ -230,14 +251,20 @@ def main():
     # 正样本按「每个真值一个」计，避免一个真值被多个断点重复匹配
     p('')
     p('=== Q1b gap 阈值 → 精确率/召回率（可部署口径：只看 gap，不看标签）===')
-    cross = B[B.cross_cycle].copy()      # 跨周期断点（真实换刀所在位置，但部署时不可知）
-    innr = B[~B.cross_cycle].copy()      # 周期内断点（假阳性）
-    p('  跨周期断点 %d 个 / 周期内断点 %d 个' % (len(cross), len(innr)))
+    # ⚠ 原版 tp 取自 cross_cycle（= life_cycle 变化）→ 循环论证：
+    #   报告写"只看 gap 不看标签"，代码里却用标签分 TP/FP。
+    #   改为：候选 = gap > 阈值（纯数据）；TP/FP 由 is_true_switch（台账时间 ±容差）判定。
+    #   这样 life_cycle 完全不参与任何指标（Test-E 的前提）。
+    pos_all = B.loc[B.is_true_switch == 1, 'gap_s'].values
+    neg_all = B.loc[B.is_true_switch == 0, 'gap_s'].values
+    p('  真换刀断点 %d 个 / 非换刀断点 %d 个（均按台账时间 ±%d 分钟判定）'
+      % (len(pos_all), len(neg_all), TOL_MIN))
     curve = []
     for thr_h in (0.05, 0.1, 0.25, 0.5, 1, 2, 4, 8, 12, 24):
         thr = thr_h * 3600
-        tp = int((cross.gap_s > thr).sum())
-        fp = int((innr.gap_s > thr).sum())
+        cand_all = B[B.gap_s > thr]
+        tp = int((cand_all.is_true_switch == 1).sum())
+        fp = int((cand_all.is_true_switch == 0).sum())
         cand = tp + fp
         prec = tp / cand if cand else np.nan
         # 召回：真值中，其前置断点 gap 超阈值 的比例
@@ -250,10 +277,10 @@ def main():
              ('%.3f' % prec) if prec == prec else '  -  ',
              ('%.3f' % min(rec, 1.0))))
     CV = pd.DataFrame(curve)
-    CV.to_csv(os.path.join(OUT, 'gap_threshold_curve.csv'), index=False, encoding='utf-8-sig')
+    CV.to_csv(os.path.join(out, 'gap_threshold_curve.csv'), index=False, encoding='utf-8-sig')
 
-    pos_gap = cross.gap_s.values
-    neg_gap = innr.gap_s.values
+    pos_gap = pos_all
+    neg_gap = neg_all
     a_gap = auc_score(pos_gap, neg_gap)
     p('')
     p('  gap 大小区分「换刀断点」vs「周期内断点」：AUC=%.3f' % a_gap)
@@ -264,8 +291,9 @@ def main():
 
     n_cand = len(B)
     n_truth = len(truth)
-    prec = (cross.gap_s > GAP_MIN_S).sum() / n_cand if n_cand else np.nan
-    rec = (cross.gap_s > GAP_MIN_S).sum() / n_truth if n_truth else np.nan
+    _c = B[B.gap_s > GAP_MIN_S]
+    prec = (len(_c) and float((_c.is_true_switch == 1).mean())) or np.nan
+    rec = (int((_c.is_true_switch == 1).sum()) / n_truth) if n_truth else np.nan
 
     # 换刀前后负载差 作为判别（取绝对值）
     B['abs_dload'] = (B.load_after - B.load_before).abs()
@@ -291,7 +319,7 @@ def main():
         dict(Metric='AUC_gap', Value=round(a_gap, 4)),
         dict(Metric='AUC_abs_dload', Value=round(a_dl, 4)),
     ])
-    M.to_csv(os.path.join(OUT, 'switch_detect_metrics.csv'), index=False, encoding='utf-8-sig')
+    M.to_csv(os.path.join(out, 'switch_detect_metrics.csv'), index=False, encoding='utf-8-sig')
 
     # ---------------- Q1b：按周期看每个周期内部的假断点
     p('')
@@ -326,7 +354,7 @@ def main():
                          data_n=len(sub), base=round(base, 5), lead=round(lead, 5),
                          rel=round(lead / base - 1.0, 5), note=''))
     Q = pd.DataFrame(rows)
-    Q.to_csv(os.path.join(OUT, 'load_before_switch.csv'), index=False, encoding='utf-8-sig')
+    Q.to_csv(os.path.join(out, 'load_before_switch.csv'), index=False, encoding='utf-8-sig')
 
     ok = Q[Q.rel.notna()]
     for form, g in ok.groupby('形态'):
@@ -350,7 +378,7 @@ def main():
                       差=(dn - r['台账刀寿']) if pd.notna(r['台账刀寿']) else np.nan,
                       数据有=('YES' if dn > 0 else 'NO')))
     PP = pd.DataFrame(P)
-    PP.to_csv(os.path.join(OUT, 'truth_vs_data_pieces.csv'), index=False, encoding='utf-8-sig')
+    PP.to_csv(os.path.join(out, 'truth_vs_data_pieces.csv'), index=False, encoding='utf-8-sig')
     both = PP[(PP.数据有 == 'YES') & PP.台账刀寿.notna()]
     p('  两处都有：%d 个周期；差的中位 %+.0f 件，|差| 中位 %.0f 件，最大 |差| %d 件'
       % (len(both), both.差.median(), both.差.abs().median(), int(both.差.abs().max())))
@@ -358,10 +386,18 @@ def main():
     for _, r in both[both.差.abs() > 20].iterrows():
         p('    c%-4d 台账 %3.0f  数据 %3d  差 %+4.0f' % (r.cycle, r['台账刀寿'], r['数据件数'], r.差))
 
+    # ---- 供 Test-E 比较的指标（全部不依赖 life_cycle）
+    METRICS = dict(n_truth=int(len(truth)), n_breaks=int(len(B)),
+                   n_pos=int(len(pos_all)), n_neg=int(len(neg_all)),
+                   auc_gap=float(a_gap), auc_dload=float(a_dl),
+                   curve=[dict(t=c['threshold_h'], tp=c['tp'], fp=c['fp'],
+                               prec=c['precision'], rec=c['recall']) for c in curve])
+
     txt = '\n'.join(log)
-    with open(os.path.join(OUT, 's30_console.log'), 'w', encoding='utf-8') as f:
+    with open(os.path.join(out, 's30_console.log'), 'w', encoding='utf-8') as f:
         f.write(txt + '\n')
     print(txt)
+    return METRICS
 
 
 if __name__ == '__main__':

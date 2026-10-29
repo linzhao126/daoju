@@ -1,0 +1,3 @@
+﻿Channel,Stage,Ok,Cycles,Pieces,Detail,Z0_Scan,Z0_BestUsable
+L,compute_segments,True,20,147,"3/3 周期有几何段 | c16:z0=-55.3,segs=1 c25:z0=-38.3,segs=52 c26:z0=-38.3,segs=83",,
+R,no_usable_z0,False,14,5,"0/3 周期有几何段 | c10:z0=0.0,segs=0 c11:z0=0.0,segs=0 c12:z0=0.0,segs=0 | 所有候选 Z0 均出不了段 → 不止缺标定",0.000:0/3;-6.300:0/3;-7.300:0/3;153.500:0/3;2.000:0/3;-0.600:0/3;0.200:0/3;-0.200:0/3,

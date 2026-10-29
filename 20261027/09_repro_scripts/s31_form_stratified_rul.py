@@ -59,7 +59,11 @@ def weibull_mle(x):
     return float(k), float(lam)
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..', '..'))
-XLS = os.path.join(ROOT, '三厂换刀记录.xlsx')
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # .../20261027
+# 台账（P1-07：0 号位已授权随包公开）→ 包内副本优先，仓库根仅作回退
+XLS = os.path.join(BASE, '15_台账真值检验', 'input', '三厂换刀记录.xlsx')
+if not os.path.exists(XLS):
+    XLS = os.path.join(ROOT, '三厂换刀记录.xlsx')
 HI_CSV = os.path.join(ROOT, 'out_T1111', 'xalign_HI.csv')
 ASOF = os.path.abspath(os.path.join(HERE, '..', '13_整改执行_v2', 'hi_asof', 'hi_asof_long.csv'))
 OUT = os.path.abspath(os.path.join(HERE, '..', '16_形态分层RUL'))
@@ -159,10 +163,12 @@ def part1(L):
     P('')
     P('  ⛔ 上表 Weibull 参数**不可用**，两个原因都必须写在报告里：')
     P('     ① k 全部顶到网格上界 12（见 Weibull_k_flag=BOUNDARY）→ 拟合退化，参数没有"形状"含义；')
-    P('     ② 更根本的是**方法前提不成立**：Weibull 要求观测是失效事件，而本台账 %d/%d 条刀寿=100，'
+    P('     ② 但方法前提存疑：Weibull 要求观测是失效事件，而本台账 %d/%d 条刀寿恰好=100。'
       % (int((L['刀寿'] == SETPOINT).sum()), int(L['刀寿'].notna().sum())))
-    P('        属于**预防性更换**（管理动作），不是失效 → 真正的失效时间是右删失的。')
-    P('        直接用 Weibull 拟合会系统性低估寿命散度。要做必须用竞争风险模型，但分开后样本不足。')
+    P('        这些「=100」的成因（计划换刀 / 工艺判废阈值 / 寿命设定 / 不同程序共用目标）')
+    P('        **无法由台账区分**（需换刀时的实测刃口状态与尺寸判定，当前没有）。')
+    P('        → 若实为计划换刀，则为右删失，需竞争风险模型；若为经验寿命到限，则前提成立。')
+    P('        → 在无法区分之前，k/λ/B10 一律标注为**探索性、不可引用**。')
 
     a = L.loc[L['形态'] == '破损', '刀寿'].dropna().values.astype(float)
     b = L.loc[L['形态'] == '磨损', '刀寿'].dropna().values.astype(float)
@@ -225,10 +231,12 @@ def part2(L):
 
     P('')
     P('  解读：')
-    P('    - 若刀寿高度集中在 %d，说明多数换刀是按目标件数"预防性更换"，不是失效触发。' % SETPOINT)
-    P('      这与台账 `是否真实失效` 全填"是"直接冲突 —— 该列不可信。')
-    P('    - 偏离 %d 的那部分，才是"提前失效"（< %d）或"超期使用"（> %d）。'
-      % (SETPOINT, SETPOINT, SETPOINT))
+    P('    - 刀寿高度集中在 %d。其成因有四种可能，**台账本身无法区分**：' % SETPOINT)
+    P('      (a) 按计划件数换刀；(b) 工艺判废阈值就是 100；(c) 机床寿命设定=100；')
+    P('      (d) 不同程序共用同一目标件数。')
+    P('    - 台账 `是否真实失效` 全填"是"，若为按定义填写则该列不含信息（不能据此反推成因）。')
+    P('    - 偏离 %d 的样本可记为"低于/高于目标件数"，但**不得直接称为"提前物理失效"/"超期使用"**'
+      % SETPOINT)
     return dict(n100=n100, n_lt=n_lt, n_gt=n_gt, rho=rho, p_rho=prho)
 
 
@@ -385,11 +393,22 @@ def part4(L, main):
         d0 = (okall.M0B_strat - okall.Actual).abs() - (okall.M0B_flat - okall.Actual).abs()
         P('    样本 %d 条，MAE 差 %+.2f 件，中位差 %+.2f' % (len(d0), d0.mean(), d0.median()))
         if len(d0) >= 5:
+            # ⚠ 审核 P1-03：同一把刀在 4 个截断点各出现一次，不是 4 个独立样本。
+            #   原版按**行**重采样 → 同一把刀被重复计入，CI 被低估（偏窄，容易假阳性）。
+            #   改为**按刀聚类**：先算每把刀的平均差，再对刀重采样。
+            _tmp = okall.assign(
+                _diff=np.asarray(d0, float),
+                _tool=okall['prog'].astype(str) + '-c' + okall['cycle'].astype(str))
+            per_tool = _tmp.groupby('_tool')['_diff'].mean()
             rng = np.random.default_rng(20261027)
-            bs = [d0.sample(len(d0), replace=True, random_state=int(rng.integers(1e9))).mean() for _ in range(2000)]
-            P('    bootstrap 95%% CI [%+.2f, %+.2f]  %s'
-              % (np.percentile(bs, 2.5), np.percentile(bs, 97.5),
-                 '跨 0（无显著差异）' if np.percentile(bs, 2.5) < 0 < np.percentile(bs, 97.5) else '不跨 0'))
+            bs = [float(per_tool.sample(len(per_tool), replace=True,
+                                        random_state=int(rng.integers(1e9))).mean())
+                  for _ in range(2000)]
+            lo, hi = np.percentile(bs, [2.5, 97.5])
+            P('    bootstrap 95%% CI [%+.2f, %+.2f]（按刀聚类，n_刀=%d / n_行=%d）  %s'
+              % (lo, hi, len(per_tool), len(d0),
+                 '跨 0（无显著差异）' if lo < 0 < hi else '不跨 0'))
+            P('    ⚠ 原版按行重采样得到更窄的 CI；本行已改为按刀聚类（P1-03）')
     else:
         P('    无可分层样本 —— 无法比较')
     return R
@@ -449,9 +468,11 @@ def main():
                       if min(pv['p_mwu'], pv['p_ks'], pv['p_t']) > 0.05
                       else '至少一个显著 → 需进一步看效应量'))
     P('  2. 分层在数据上结构不可行：同程序内形态几乎单一（prog20 全破损）')
-    P('  3. 刀寿 %d 条中 %d 条正好等于 %d（%.0f%%）→ 多数是预防性更换，不是失效触发'
+    P('  3. 刀寿 %d 条中 %d 条正好等于 %d（%.0f%%）→ 其成因（计划换刀/工艺判废阈值/寿命设定/共用目标）'
       % (len(L['刀寿'].dropna()), p2['n100'], SETPOINT, 100 * p2['n100'] / len(L['刀寿'].dropna())))
-    P('  4. 因此本报告不支持"按形态分层建模"；若要做，先等样本，不要先加复杂度')
+    P('     **无法由台账区分**，需换刀时实测刃口状态与尺寸判定')
+    P('  4. 因此本报告**不主张**按形态分层建模（限于统计层面：层间未检出差异）；')
+    P('     是否分层属技术路线问题，按 G0-04 应由 0 号位裁决，本脚本不作路线结论')
 
     txt = '\n'.join(log)
     with open(os.path.join(OUT, 's31_console.log'), 'w', encoding='utf-8') as f:

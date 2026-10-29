@@ -1,0 +1,13 @@
+﻿Tag,Model,n_tools,n_rows,delta,lo,hi,sig
+global_all,M1New,28,100,1.146,-2.662,5.438,NO
+global_all,M1Old,28,100,0.091,-2.029,2.284,NO
+global_drop,M1New,26,92,1.724,-2.15,6.281,NO
+global_drop,M1Old,26,92,0.434,-1.43,2.388,NO
+part_all,M1New,28,100,2.792,-1.339,8.585,NO
+part_all,M1Old,28,100,1.466,-1.028,4.525,NO
+part_drop,M1New,26,92,3.66,-0.648,9.834,NO
+part_drop,M1Old,26,92,1.447,-0.868,4.442,NO
+prog_all,M1New,23,82,3.633,0.21,7.703,YES
+prog_all,M1Old,23,82,5.093,1.053,10.136,YES
+prog_drop,M1New,21,74,2.338,-2.22,6.701,NO
+prog_drop,M1Old,21,74,2.222,-0.156,5.136,NO

@@ -1,0 +1,16 @@
+﻿ID,Ref,Item,Status,Check,Verified,Patterns,Evidence
+R07-1,FIX-08 §一-1,禁「已获延长许可 → 可用到 N 件」,IMPLEMENTED,ABSENT,PASS,已获延长许可;可用到 ,"改为""信号未见异常上升 · 仅供参考（参考线 N 件，不构成延长许可）"""
+R07-2,FIX-08 §一-2,禁「（比新刀 ±x%）」,IMPLEMENTED,ABSENT,PASS,比新刀,"改为""相对本观测段参考基线"""
+R07-3,FIX-08 §一-3,"history 加 src 列，页面显示""在线 N / 离线标定 M""",DESIGN_ONLY,NONE,N/A,,需 ALTER TABLE + 迁移顺序控制（踩过 ALTER 必须在 UNIQUE 迁移之后），本轮未动库
+R07-4,FIX-08 §二-1,新增 MONITOR_ONLY 状态（不显示任何该换/可延字样）,DESIGN_ONLY,NONE,N/A,,需改状态机与前端渲染分支，属判定语义变更
+R07-5,FIX-08 §二-2,新增 INSUFFICIENT_DATA 状态（水位线停滞 >24h 全页不给数字）,DESIGN_ONLY,NONE,N/A,,同上；实测库停在 10-22 而当天 10-27，页面仍显示旧值 → 这个缺口真实存在
+R07-6,FIX-08 §三-1,TXT.bad「已过中位寿命，必须换」→「已过同程序中位寿命 · 需复核」,IMPLEMENTED,PRESENT,PASS,已过同程序中位寿命 · 需复核,同时消掉 HARD 词「必须换」
+R07-7,FIX-08 §三-2,信号文案改「相对本观测段参考基线」,IMPLEMENTED,PRESENT,PASS,相对本观测段参考基线,"冷启动下不再出现""新刀""二字"
+R07-8,FIX-08 §三-3,「可用到 N 件」→「不构成延长许可」,IMPLEMENTED,PRESENT,PASS,不构成延长许可,保留参考线数字但删除许可语义
+R07-9,FIX-08 §三-4,「第 N 件就换」→「建议在第 N 件复核」,IMPLEMENTED,PRESENT,PASS,建议在第 ,同时消掉 HARD 词「就换」
+R07-10,FIX-08 §三-5,「已封口 N 件」→「全库已封口 N 件」,IMPLEMENTED,ABSENT,PASS,>已封口 ,"两处（模拟器分支 + 实时分支）都改；避免把""全库件数""误读成""本把刀件数"""
+R07-11,FIX-08 §三-6,经验值来源写明（非在线统计）,IMPLEMENTED,PRESENT,PASS,非在线统计,"原文只说""经验值 100 件""，没说这 100 是怎么来的"
+R07-12,FIX-08 §四-1,颜色与文字同源（状态机改 used ≥ (limit or h)）,DESIGN_ONLY,NONE,N/A,,会移动橙/红触发点，属判定语义变更，须先批
+R07-13,FIX-08 §四-2,history.src 的 ALTER 与 UNIQUE 迁移顺序,DESIGN_ONLY,NONE,N/A,,与 R07-3 同一件事，依赖库迁移
+R07-14,FIX-08 §五-2,不自动停机 / 不自动换刀（全文无 FOCAS 写接口）,IMPLEMENTED,ABSENT,PASS,focas;fwlib;pmc;writeMemory;tool_offset;socket,server.py 全文 6 个写通道关键词 0 命中 → 技术上不可能下发指令
+R07-15,FIX-08 §五-4,页面写明「寿命 = 距下次人工换刀，不是物理磨损失效」,DESIGN_ONLY,NONE,N/A,,需加固定说明条，与本轮文案改动一起做更省事，但会动布局

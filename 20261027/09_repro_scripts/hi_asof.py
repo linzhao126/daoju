@@ -24,11 +24,19 @@ import os
 import numpy as np
 import pandas as pd
 
+import channel_map as CM
+
 X_MIN, X_MAX, GRID_N = 19.0, 40.0, 40
 Z_TOL, LOAD_FRAC, MIN_POINTS, DESC_TOL, MIN_SPAN, KEEP_FRAC, BASE_K = 1.0, 0.50, 8, 2.5, 5.0, 0.70, 10
 ZREF_PIECES = 10
-METRIC = 'L_spindle_load'
-COLS = ['_time', 'life_cycle', 'L_allnum', 'L_abso_x', 'L_abso_z', 'L_spindle_load', 'L_spindle_speed']
+# ---------------------------------------------------------------- 通道映射（P1-08）
+# 原来这里写死 'L_spindle_load' 等，等价于"本脚本只支持 4152 的 L 通道"。
+# 现在走 channel_map：环境变量 CHANNEL=L|R 切换，字段名由映射层解析。
+# 默认 L 时解析出的物理字段与原来完全一致，行为不变（Test-B 会验证）。
+CHANNEL = os.environ.get('CHANNEL', 'L').upper()
+CH = CM.ChannelMap(CHANNEL)
+METRIC = CH.load
+COLS = CH.cols(['time', 'allnum', 'x', 'z', 'load', 'spd'], extra=['life_cycle'])
 
 
 def _cfg(cap_ref=0.0):
@@ -59,19 +67,25 @@ def tp():
     return _TP
 
 
-def build_piece_index(raw_csv, cycles=None, cols=COLS):
+def build_piece_index(raw_csv, cycles=None, cols=None):
+    # ⚠ 不能写 `cols=COLS`：默认参数在**函数定义时**求值一次，之后改模块级 COLS 无效
+    #    （切 R 通道时报 Usecols do not match，期望里还是 L_ 的列名）。P1-08 实测抓到的坑。
+    cols = COLS if cols is None else cols
     d = pd.read_csv(raw_csv, usecols=cols, encoding='utf-8-sig')
-    for c in cols[3:]:
-        d[c] = pd.to_numeric(d[c], errors='coerce')
+    # ⚠ 原版写 `for c in cols[3:]`（按位置切片）——依赖列顺序，一旦调整 COLS 顺序就会
+    #    漏掉某列或多转一列。改为显式按逻辑名列出数值列。
+    for c in (CH.x, CH.z, CH.load, CH.spd, CH.allnum):
+        if c in d.columns:
+            d[c] = pd.to_numeric(d[c], errors='coerce')
     d['_t'] = pd.to_datetime(d['_time'], format='%Y-%m-%d %H:%M:%S.%f', errors='coerce')
-    d = d.dropna(subset=['life_cycle', 'L_allnum', '_t'])
+    d = d.dropna(subset=['life_cycle', CH.allnum, '_t'])
     if cycles is not None:
         d = d[d.life_cycle.isin(cycles)]
     idx = {}
     for cid, g in d.groupby('life_cycle'):
-        pieces = sorted(int(a) for a in g.L_allnum.unique())
+        pieces = sorted(int(a) for a in g[CH.allnum].unique())
         rows = {int(a): q.sort_values('_t').reset_index(drop=True)
-                for a, q in g.groupby('L_allnum')}
+                for a, q in g.groupby(CH.allnum)}
         idx[int(cid)] = dict(pieces=pieces, rows=rows)
     return idx
 
@@ -80,23 +94,33 @@ def z0_of(pieces, rows, zref_pieces=ZREF_PIECES):
     """z0 只用最前面 zref_pieces 件（先验常数），与 N 无关"""
     zs = []
     for a in pieces[:min(zref_pieces, len(pieces))]:
-        sp = rows[a][rows[a]['L_spindle_speed'].fillna(0) > 0]
+        sp = rows[a][rows[a][CH.spd].fillna(0) > 0]
         if len(sp):
-            zs.append(sp['L_abso_z'].round(1))
+            zs.append(sp[CH.z].round(1))
     if not zs:
         return None
     return float(pd.concat(zs).mode().iloc[0])
 
 
-def compute_segments(pieces, rows, zref_pieces=ZREF_PIECES, metric=METRIC):
-    """逐件几何定位（只依赖该件自身 + 前 10 件定的 z0）"""
-    z0 = z0_of(pieces, rows, zref_pieces)
+def compute_segments(pieces, rows, zref_pieces=ZREF_PIECES, metric=None, z0_override=None):
+    """逐件几何定位（只依赖该件自身 + 前 10 件定的 z0）
+
+    z0_override: 手工指定 z0（P1-08 移植标定时用；正常流程走 z0_of 自观测）
+    """
+    metric = METRIC if metric is None else metric       # 默认参数不能在定义时绑定
+    z0 = float(z0_override) if z0_override is not None else z0_of(pieces, rows, zref_pieces)
     if z0 is None:
         return None, []
     cfg = _cfg()
     segs = []
+    # ⚠ 适配垫片：`t1111_pipeline._xalign_piece` 内部 10+ 处写死 `L_` 字段名，
+    #   且它是审核方 E01 证据的生成器，本轮不动。非 L 通道时把列名临时改写成 L_ 形式，
+    #   只在调用它的那一瞬转换 —— **不能改 rows 本身**，因为 z0_of 用的是本通道列名。
+    #   真正的解是给 `_xalign_piece` 加 channel_map 参数（需先报备）。
+    need_shim = (CHANNEL != 'L')
     for i, a in enumerate(pieces, 1):
-        r = tp()._xalign_piece(rows[a], z0, [metric], cfg)
+        df_in = CH.to_pipeline_names(rows[a]) if need_shim else rows[a]
+        r = tp()._xalign_piece(df_in, z0, [metric], cfg)
         if r is not None and metric in r:
             # idx = 该件在周期内的**序号**（1-based）。
             # 必须按件序号截断，不能按"有效段的第 N 个"——否则某件被判废时，
@@ -105,8 +129,9 @@ def compute_segments(pieces, rows, zref_pieces=ZREF_PIECES, metric=METRIC):
     return z0, segs
 
 
-def hi_from_segments(segs, N, mode='C1', base_k=BASE_K, metric=METRIC):
+def hi_from_segments(segs, N, mode='C1', base_k=BASE_K, metric=None):
     """给定段列表与截断件数 N，用**前缀**重算 grid / 覆盖 / 基线 / HI"""
+    metric = METRIC if metric is None else metric       # 同上
     sub = [s for s in segs if s['idx'] <= int(N)]
     if len(sub) < 3:
         return dict(ok=False, reason='too_few_pieces')

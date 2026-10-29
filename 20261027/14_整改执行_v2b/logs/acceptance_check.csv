@@ -1,0 +1,19 @@
+﻿ID,File,Pattern,Want,Status,Hit
+A-test_a-count,test_a.log,171（PASS 171 / FAIL 0,171 用例全过,PASS,171（PASS 171 / FAIL 0
+A-test_a-dfit,test_a.log,最大 \|ΔFitB\| = 0\.000e\+00,拟合参数零漂移,PASS,最大 |ΔFitB| = 0.000e+00
+B-test_b,test_b.log,结论：PASS,HI 逐位不变,PASS,结论：PASS
+C-test_c,test_c.log,结论：PASS,单刃口/多片段/刀龄/暴露 4 项,PASS,结论：PASS
+D-test_d,test_d.log,汇总：9 / 9 PASS,崩刃截断 9/9,PASS,汇总：9 / 9 PASS
+D-test_d-dscore,test_d.log,最大 \|Δscore\|\s+= 0\.000e\+00,检测分零漂移,PASS,最大 |Δscore|  = 0.000e+00
+E-test_e,test_e.log,汇总：46 / 46 PASS,换刀指标不依赖 life_cycle,PASS,汇总：46 / 46 PASS
+F-channel_map,channel_map.log,12/12 PASS,通道映射自检,PASS,12/12 PASS
+G-s41-l,s41.log,3/3 周期有几何段,L 通道有段,PASS,3/3 周期有几何段
+G-s41-r,s41.log,0/3 周期有段,R 通道不可移植,PASS,0/3 周期有段
+H-s42,s42.log,可正式验收\s+8\b,严格可验收 8 个周期,PASS,可正式验收                          8
+I-s30-auc,s30.log,AUC=0\.560\b,换刀检测 AUC≈随机（非 0.862）,PASS,AUC=0.560
+J-s44-hard0,s44.log,改动后（线上 \+ 交付副本）HARD 命中：0 处,UI 禁用措辞清零,PASS,改动后（线上 + 交付副本）HARD 命中：0 处
+J-s44-exit,s44.log,exit=0,UI 扫描自身通过,PASS,exit=0
+K-s45-pii,s45.log,PII 命中 0 处,台账无个人标识,PASS,PII 命中 0 处
+K-s45-path,s45.log,7 脚本包内优先 7/7,台账路径解耦,PASS,7 脚本包内优先 7/7
+K-s45-sha,s45.log,一致：是,台账 SHA256 三方一致,PASS,一致：是
+L-g0,g0_check.log,合计：PASS 1 / WARN 1 / FAIL 0,G0 自检无 FAIL,PASS,合计：PASS 1 / WARN 1 / FAIL 0

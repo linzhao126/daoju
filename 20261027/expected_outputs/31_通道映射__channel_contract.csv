@@ -1,0 +1,9 @@
+﻿Logical,Required,Desc,L_Field,R_Field
+time,True,采集时刻（毫秒精度，作为唯一键）,_time,_time
+load,True,主轴负载（HI 的度量对象）,L_spindle_load,R_spindle_load
+x,True,X 轴绝对位置（xalign 的插值自变量）,L_abso_x,R_abso_x
+z,True,Z 轴绝对位置（切断工步的 Z 带定位）,L_abso_z,R_abso_z
+allnum,True,机床产品件号（切件依据）,L_allnum,R_allnum
+spd,True,主轴转速（剔除非切削行的门控量）,L_spindle_speed,R_spindle_speed
+program,False,主程序号+品番（M0 分组依据）,L_main_program,R_main_program
+tool_no,False,刀号（多刀混采时过滤）,L_tool_number,R_tool_number

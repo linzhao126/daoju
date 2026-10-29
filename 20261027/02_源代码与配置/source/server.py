@@ -43,6 +43,7 @@
     busy_timeout=5000 兜住跨线程的短暂争用
 """
 
+import os
 import argparse
 import json
 import sqlite3
@@ -69,7 +70,7 @@ INDEX = HERE / "index.html"
 # ---- 决策参数（与 bin_decision.py 保持一致）
 K_BASE = 20        # 新刀基线取前几件
 W = 10             # 信号平滑窗口
-TAU = 0.01         # 延长许可门槛：HI 相对基线上升 >= 1%
+TAU = 0.01         # 延长判断门槛：HI 相对基线上升 >= 1%
 BASE_F, EXT_F = 0.4, 0.9
 
 # ---- 历史样本量门槛（2026-10-21 加）
@@ -81,6 +82,65 @@ MIN_N_BASIC = 3      # 最短 / 中位 / 最长 至少要 3 条历史
 MIN_N_P85 = 5        # 常见上限 + 0.4/0.9 判定线 至少要 5 条
                      # 依据：n=7 时 P85 的 bootstrap 区间是 [85,197]，跨度 103%
 EXP_M0 = 100.0       # 无历史时的"经验提示值"，只作提示线，不参与任何判定
+
+# ---------------------------------------------------------------- 分组粒度
+# 0 号位 2026-10-28 裁决：换品番时不换刀，允许一把刀跨品番。
+# 于是「同一把刀」的历史应当按**品番**汇总，不是按程序。
+#
+# 实测依据（见 20261026/回复/20261027/26-00）：
+#   1) 7 个程序其实是 2 个品番下的不同工序（程序名形如 C5G25-02-BAR331）
+#   2) 4 个跨品番/跨工序周期的两段负荷比只有 1.01~1.06，而单件噪声 σ≈2% → 同量级
+#   3) 按品番分组的 M0 显著优于按程序（同样本 ΔMAE −0.966，CI[−1.407,−0.327]）
+#   4) 按程序分组时每组平均只有 6.9 把刀 → 过拟合
+#
+# ⚠ 这不只是"更准"，还修了一个真 bug：按 prog 过滤会**漏掉跨品番的件**
+#   （c33 若按 prog=19 只数 56 件，实际这把刀干了 107 件）
+PART_PROGS = {
+    '02': [11, 13, 14],          # C5G25-02：ACE-AR321 / AAR331 / BAR331
+    '03': [16, 17, 19, 20],      # C5G25-03：ACE-AR421 / AAR331 / BDF-AR421 / BAR331
+}
+
+# 回退开关：设 GROUP_MODE=prog 可退回"按程序"的旧行为（对比/排查用）
+GROUP_MODE = os.environ.get("GROUP_MODE", "part")
+
+
+def group_progs(prog):
+    """返回与 prog 同组的所有程序号。
+
+    GROUP_MODE='part' → 同品番下的全部程序（推荐，默认）
+    GROUP_MODE='prog' → 只返回自身（旧行为，可回退）
+    未知程序（不在映射表里）→ 只返回自身，安全回退
+    """
+    try:
+        prog = int(prog)
+    except (TypeError, ValueError):
+        return [prog]
+    if GROUP_MODE == "prog":
+        return [prog]
+    for _part, ps in PART_PROGS.items():
+        if prog in ps:
+            return list(ps)
+    return [prog]
+
+
+def part_of(prog):
+    """prog → 品番号（'02' / '03'）；未知返回 None"""
+    try:
+        prog = int(prog)
+    except (TypeError, ValueError):
+        return None
+    for part, ps in PART_PROGS.items():
+        if prog in ps:
+            return part
+    return None
+
+
+def _ph(n):
+    """n 个占位符"""
+    return '(' + ','.join('?' * n) + ')'
+
+
+
 
 # ---- 保留策略
 KEEP_RAW_DAYS = 7            # raw_rows 滚动保留天数
@@ -355,7 +415,7 @@ def cleanup(force=False):
     """按**数据水位线**滚动删除 raw_rows(7天) / pieces(30天)。
 
     为什么不能用 now（这是本项目最容易犯的一类错）
-        cutoff = now - 7d 在"放假"场景下必然出事：
+        cutoff = now - 7d 在"放假"场景下会删空数据：
         放假 10 天，程序启动时 max(ts) 已经是 10 天前，
         所有数据都早于 now-7d → 一次 DELETE 把库删空。
         这正是用户提的场景。
@@ -524,11 +584,16 @@ def compute_view():
     prog = current_prog()
 
     # ---- 当前刀基准：最后一次"已换新刀"的 allnum；没有就用最早的一件
+    # 按品番汇总（GROUP_MODE=prog 时退化为只含自身）
+    progs = group_progs(prog)
+    ph = _ph(len(progs))
+    part = part_of(prog)
+
     last_new = c.execute(
-        "SELECT allnum FROM tool_events WHERE event='new' AND prog=? ORDER BY id DESC LIMIT 1",
-        (prog,)).fetchone()
-    r_min = c.execute("SELECT MIN(allnum) m, MAX(allnum) x FROM pieces WHERE prog=?",
-                      (prog,)).fetchone()
+        "SELECT allnum FROM tool_events WHERE event='new' AND prog IN " + ph +
+        " ORDER BY id DESC LIMIT 1", progs).fetchone()
+    r_min = c.execute("SELECT MIN(allnum) m, MAX(allnum) x FROM pieces WHERE prog IN " + ph,
+                      progs).fetchone()
     if r_min is None or r_min["m"] is None:
         # 文案要跟数据源匹配：influx 模式下"点下面的开始"是模拟器专用说法，会让人乱按
         if SOURCE == "influx":
@@ -546,8 +611,8 @@ def compute_view():
     # 别的刀每加工一件 allnum 也 +1。实时流里 T1111 的 allnum 从 61000 跳到 61143，
     # 差值 143，但其中只有 43 件是 T1111 干的。
     # 离线 CSV 是过滤后的单刀数据，差值恰好等于件数，所以当年没暴露出这个问题。
-    used = c.execute("SELECT COUNT(*) FROM pieces WHERE prog=? AND allnum>?",
-                     (prog, base_allnum)).fetchone()[0]
+    used = c.execute("SELECT COUNT(*) FROM pieces WHERE prog IN " + ph + " AND allnum>?",
+                     progs + [base_allnum]).fetchone()[0]
 
     # ---- 历史寿命 → 最短 / 中位 / 常见上限 / 最长
     # ⚠ 这四格统计的是"同程序历史换刀记录"，跟当前这把刀无关，换刀不会改变它们。
@@ -555,11 +620,11 @@ def compute_view():
     #   原来无历史时 hist=[100.0]，于是 median/p85/min/max 四个全等于 100，
     #   页面显示四个一模一样的"确凿数字"，用户完全没法判断这是算出来的还是猜的。
     hist = [r["life"] for r in c.execute(
-        "SELECT life FROM history WHERE prog=? AND COALESCE(valid,1)=1 ORDER BY id",
-        (prog,)).fetchall()]
+        "SELECT life FROM history WHERE prog IN " + ph + " AND COALESCE(valid,1)=1 ORDER BY id",
+        progs).fetchall()]
     n_invalid = c.execute(
-        "SELECT COUNT(*) FROM history WHERE prog=? AND COALESCE(valid,1)=0",
-        (prog,)).fetchone()[0]
+        "SELECT COUNT(*) FROM history WHERE prog IN " + ph + " AND COALESCE(valid,1)=0",
+        progs).fetchone()[0]
 
     n_real = len(hist)                    # 真实历史换刀记录条数（不再是兜底数组长度）
     no_hist = n_real == 0
@@ -570,7 +635,7 @@ def compute_view():
         m0 = float(np.median(hist))
     if n_real >= MIN_N_P85:
         p85 = float(np.percentile(hist, 85))
-    # judge_ok=False → 页面只准显示件数，不许给"延长许可/建议换刀"这类判定
+    # judge_ok=False → 页面只准显示件数，不许给"延长判断/建议换刀"这类判定
     judge_ok = (m0 is not None and p85 is not None)
 
     # 判定线只在样本够的时候才有意义；不够就 None，页面显示「—」
@@ -579,8 +644,8 @@ def compute_view():
 
     # ---- 当前这把刀的 HI 序列
     rows = c.execute(
-        "SELECT allnum, load_med FROM pieces WHERE prog=? AND allnum>? ORDER BY allnum",
-        (prog, base_allnum)).fetchall()
+        "SELECT allnum, load_med FROM pieces WHERE prog IN " + ph + " AND allnum>? ORDER BY allnum",
+        progs + [base_allnum]).fetchall()
     hi_series, hi_now = [], None
     if len(rows) >= K_BASE:
         vals = np.array([r["load_med"] for r in rows], dtype=float)
@@ -590,11 +655,11 @@ def compute_view():
             hi_series = [round(float(v), 4) for v in hi_all]
             hi_now = float(np.median(hi_all[-W:]))
 
-    # ---- 延长许可：跨过 base 时评估一次，锁存，之后不再改
+    # ---- 延长判断：跨过 base 时评估一次，锁存，之后不再改
     gkey = "grant_%d_%d" % (prog, base_allnum)
     granted = None
     if not judge_ok:
-        # 样本不足：不给延长许可，也不写 kv。
+        # 样本不足：不做延长判断，也不写 kv。
         # 写 kv 会让锁存状态一直留着，等以后样本够了还沿用当时那个没依据的判断。
         limit, limit_txt = None, "未标定，不给换刀点"
     else:
@@ -608,9 +673,9 @@ def compute_view():
         if granted is None:
             limit, limit_txt = b, "到复核点再判"
         elif granted:
-            limit, limit_txt = h, "已获延长许可"
+            limit, limit_txt = h, "信号未见异常上升，仅供参考"
         else:
-            limit, limit_txt = b, "信号未确认，按基准换"
+            limit, limit_txt = b, "信号未确认，按基准复核"
 
     # ---- 四档状态（判定只看 M0，不看 P85）
     # 样本不足时降到 cnt（件数提示），不给任何"该不该换"的判断
@@ -636,6 +701,15 @@ def compute_view():
     return {
         "ok": True,
         "prog": prog,
+        # 分组口径：part = 按品番（默认，同一把刀跨品番时件数与历史都合并）
+        #           prog = 按程序（旧行为，GROUP_MODE=prog 时退化为这个）
+        "group": {
+            "mode": GROUP_MODE,
+            "part": part,
+            "progs": progs,
+            "label": ("品番 C5G25-" + part) if (GROUP_MODE == "part" and part)
+                     else ("程序 " + str(prog)),
+        },
         "no_hist": no_hist,
         "allnum": max_allnum,
         "base_allnum": base_allnum,
@@ -856,7 +930,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="换刀决策后端",
-    description="CNC 刀具寿命二档换刀决策：件数配额 + 信号延长许可",
+    description="CNC 刀具寿命二档换刀决策：件数配额 + 信号参考线（不构成延长许可）",
     version="2.0",
     lifespan=lifespan,
 )

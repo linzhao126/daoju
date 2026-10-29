@@ -17,6 +17,16 @@
 """
 import numpy as np
 
+# ---- M1-新 的数值护栏（2026-10-28 加，修"预测出比总寿命还大的值"）
+# 病灶：pred = m0b · exp(g·z)，g 已 clamp ±0.5 但 **z 没有上限**。
+#   训练池只有 2~3 把时 sd 极小 → z 放大 → exp 爆炸。
+#   实测：D2 组 N=40 的 c60 预测出 344.69 件（真值 52，总寿命仅 92）。
+# 处理：只在**预测**时截断 z（拟合时不动，保证 FitG 语义不变、Test-A 仍成立），
+#   再对结果加 [0, 3×M0-B] 的物理约束（剩余件数不可能为负，也不太可能超过基线 3 倍）。
+Z_PRED_MAX = 3.0      # 标准化残差截断（超出即不再外推）
+FACTOR_LO, FACTOR_HI = 0.5, 2.0   # 乘性因子区间：修正不该改变量级
+PRED_CAP_MULT = 3.0   # 绝对值兜底：预测 ≤ 该值 × M0-B（叠加在因子约束之上）
+
 
 def nested_predict(life, prog_of, k, N, RISE, min_fit=2):
     """返回单个测试刀 k 在截断点 N 的四个预测 + 拟合参数
@@ -65,12 +75,19 @@ def nested_predict(life, prog_of, k, N, RISE, min_fit=2):
         sd = max(float(xv[ok2].std(ddof=1)), 1e-9)
         z = (xv[ok2] - xv[ok2].mean()) / sd
         g = float(np.clip((z * yv[ok2]).sum() / max((z * z).sum(), 1e-12), -0.5, 0.5))
-        pred_new = float(m0b_k * np.exp(g * (r_k - xv[ok2].mean()) / sd))
+        # 测试点的 z 单独截断（不影响上面的 g 拟合）
+        z_k = float(np.clip((r_k - xv[ok2].mean()) / sd, -Z_PRED_MAX, Z_PRED_MAX))
+        # 乘性因子限幅：exp(g·z) 太容易把 M0-B 的误差放大（实测 c27 的 M0B=67、真值 52，
+        # 因子失控后预测 220）。修正项只该微调，不该改变量级 → 夹到 [0.5, 2.0]。
+        factor = float(np.clip(np.exp(g * z_k), FACTOR_LO, FACTOR_HI))
+        pred_raw = float(m0b_k * factor)
+        # 绝对值兜底：剩余件数 ≥0，且 ≤ PRED_CAP_MULT × 基线
+        pred_new = float(np.clip(pred_raw, 0.0, PRED_CAP_MULT * max(m0b_k, 1e-9)))
     else:
         g, pred_new = np.nan, np.nan
 
     q = np.percentile(cond_k, [10, 90]) if len(cond_k) >= 2 else [np.nan, np.nan]
     return dict(k=k, N=N, S=S, m0a_k=m0a_k, m0b_k=m0b_k,
                 M0A=m0a_k - N, M0B=m0b_k,
-                M1Old=pred_old, M1New=pred_new,
+                M1Old=pred_old, M1New=pred_new, M1NewRaw=locals().get('pred_raw', np.nan),
                 FitB=b, FitG=g, PI_lo=q[0], PI_hi=q[1], n_fit=int(ok.sum()), n_fit2=int(ok2.sum()))

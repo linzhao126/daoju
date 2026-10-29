@@ -219,7 +219,7 @@ body{background:var(--page);color:var(--ink);font-family:-apple-system,"Segoe UI
 
 <script>
 const $ = id => document.getElementById(id);
-const TXT = {ok:"状态正常", chk:"到复核点了", sug:"建议换刀", bad:"已过中位寿命，必须换",
+const TXT = {ok:"状态正常", chk:"到复核点了", sug:"建议换刀", bad:"已过同程序中位寿命 · 需复核",
              cnt:"件数提示 · 暂不做换刀判定"};
 let last = null;
 
@@ -260,7 +260,7 @@ function renderHB(d){
 
   if(d.source !== "influx"){
     el.innerHTML = '<span><span class="dot"></span>数据源 <b>模拟器</b>（演示库 tool_sim.db，不碰真实数据）</span>' +
-      '<span class="sep">|</span><span>已封口 <b>' + d.pieces_total + '</b> 件</span>' +
+      '<span class="sep">|</span><span>全库已封口 <b>' + d.pieces_total + '</b> 件</span>' +
       '<span class="sep">|</span><span>原始行 <b>' + Number(d.raw_rows).toLocaleString() + '</b></span>';
     return;
   }
@@ -283,7 +283,7 @@ function renderHB(d){
     '<span class="sep">|</span><span>源 <b>' + (ig.tool || "T1111") + '</b> @ 设备 ' + (ig.device || "4152") + '</span>' +
     '<span class="sep">|</span><span>轮询 <b>' + ig.n_poll + '</b> 次 · 失败 <b>' + ig.n_fail + '</b></span>' +
     '<span class="sep">|</span><span>最后拉到 <b>' + okTxt + '</b>（滞后 ' + lagTxt + '）</span>' +
-    '<span class="sep">|</span><span>已封口 <b>' + d.pieces_total + '</b> 件 · 曲线 <b>' + d.n_curve + '</b></span>' +
+    '<span class="sep">|</span><span>全库已封口 <b>' + d.pieces_total + '</b> 件 · 曲线 <b>' + d.n_curve + '</b></span>' +
     // 原来写在模拟器那块里的"件数从哪算起"，藏掉那块后搬到这里，不然信息就丢了
     '<span class="sep">|</span><span>本把刀 ' +
       (d.base_src === "cold" ? '冷启动（没人点过「已换新刀」）→ 件数只当下限' : '从「已换新刀」起算') +
@@ -297,7 +297,12 @@ function render(d){
   const hasM0 = (m0 !== null && m0 !== undefined);   // 中位寿命是否算得出来
   const DASH = "—";
 
-  $("progTag").textContent = "/ 程序 " + d.prog;
+  // 分组口径（2026-10-28）：默认按**品番**汇总历史与件数（同一把刀可跨品番）。
+  // 后端 GROUP_MODE=prog 时退化为旧行为。这里把两者都显示出来，避免"为什么件数变多"的误解。
+  const _g = d.group;
+  $("progTag").textContent = (_g && _g.mode === "part" && _g.part)
+    ? " / " + _g.label + " · 程序 " + d.prog
+    : " / 程序 " + d.prog;
   $("otherProg").textContent = d.prog === 14 ? "20" : "14";
 
   // 冷启动（从没人点过"换新刀"）时，这个数是"库里该程序的件数"，
@@ -315,7 +320,7 @@ function render(d){
   if(!hasM0){
     // 完全没有历史：明说"经验值"，不能让人以为这是算出来的
     $("remain").innerHTML = "该程序 <b>0</b> 条历史换刀记录 · 暂以经验值 <b>" + d.exp_m0 +
-      "</b> 件作提示线（<b>不是判定依据</b>）→ 只按件数提醒，不判断该不该换";
+      "</b> 件作提示线（<b>不是判定依据</b>）→ 只按件数提醒，不判断该不该换<br><span style=\"opacity:.7\">经验值 = 离线 prog14+prog20 寿命中位合并取整，<b>非在线统计</b></span>";
   }else if(!d.judge_ok){
     $("remain").innerHTML = "历史只有 <b>" + nH + "</b> 条（不足 " + d.min_n_p85 +
       " 条）· 中位 " + m0 + " 件可参考，<b>不做换刀判定</b>";
@@ -363,11 +368,11 @@ function render(d){
   }else{
     const pct = (d.hi - 1) * 100;
     const dir = pct >= 0 ? "高" : "低";
-    $("sigTxt").innerHTML = "信号：HI <b>" + d.hi.toFixed(3) + "</b>（比新刀 " + dir + " <b>" +
+    $("sigTxt").innerHTML = "信号：HI <b>" + d.hi.toFixed(3) + "</b>（相对本观测段参考基线 " + dir + " <b>" +
       Math.abs(pct).toFixed(1) + "%</b>）";
     const g = $("sigLimit");
     if(!d.judge_ok){
-      // 没有标定过的 M0 → 延长许可这一步根本没有依据，不能当真
+      // 没有标定过的 M0 → 延长判断这一步根本没有依据，不能当真
       g.className = "";
       g.textContent = "M0 未标定 → 信号仅供参考，不参与换刀判断";
     }else if(d.granted === null){
@@ -375,10 +380,10 @@ function render(d){
       g.textContent = "到第 " + b + " 件评估";
     }else if(d.granted){
       g.className = "grant";
-      g.textContent = "已获延长许可 → 可用到 " + d.limit + " 件";
+      g.textContent = "信号未见异常上升 · 仅供参考（参考线 " + d.limit + " 件，不构成延长许可）";
     }else{
       g.className = "nogrant";
-      g.textContent = "信号未确认 → 第 " + d.limit + " 件就换";
+      g.textContent = "信号未确认 · 建议在第 " + d.limit + " 件复核";
     }
   }
   drawHI(d.hi_series);

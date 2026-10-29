@@ -1,0 +1,8 @@
+﻿Script,ReadsPackageCopy,HardcodedOldDir,Note
+s30_switch_truth.py,Y,N,包内副本优先
+s31_form_stratified_rul.py,Y,N,包内副本优先
+s32_label_audit.py,Y,N,包内副本优先
+s33_build_labeled_new.py,Y,N,包内副本优先
+s34_data_equiv.py,Y,N,包内副本优先
+s40_gap_classify.py,Y,N,包内副本优先
+s42_p01_evidence.py,Y,N,包内副本优先

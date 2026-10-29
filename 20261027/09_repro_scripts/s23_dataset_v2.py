@@ -70,14 +70,58 @@ A['ToolInvocationIndex'] = 'UNKNOWN(无NC调用数据:L_sub_program切削时为�
 A['AlignedProg'] = A.LifeCycle.map(aligned_prog)
 
 # 边界证据等级
+# ---------------- BoundaryEvidence 四级重建（审核 P0-06）
+# 原实现的两个问题：
+#   ① `PhysicalLifeId.endswith('c38')` 硬编码 —— 换一批数据就错
+#   ② 其余全默认 `LEDGER_EXACT`，等于没验证
+# 重建依据：**数据实际起止 vs 台账窗起止的分钟差**（实测，逐周期）
+#   基准表 23_两批数据等价性/L2_by_window.csv（由 s34 产出；含 OldT0/OldT1/WinStart/WinEnd）
+BOUND_TOL_MIN = 60      # 起点晚或止点早超过该值 → 边界不完整
+BOUND_REF = os.path.join(os.path.dirname(__file__), '..', '23_两批数据等价性', 'L2_by_window.csv')
+_BND = {}
+if os.path.exists(BOUND_REF):
+    _b = pd.read_csv(BOUND_REF, encoding='utf-8-sig')
+    for _, _r in _b.iterrows():
+        try:
+            if pd.notna(_r['OldT0']) and pd.notna(_r['OldT1']) and pd.notna(_r['WinStart']):
+                _d0 = (pd.Timestamp(_r['OldT0']) - pd.Timestamp(_r['WinStart'])).total_seconds() / 60.0
+                _d1 = (pd.Timestamp(_r['OldT1']) - pd.Timestamp(_r['WinEnd'])).total_seconds() / 60.0 \
+                    if pd.notna(_r['WinEnd']) else float('nan')
+                _BND[int(_r['Cycle'])] = (_d0, _d1)
+        except Exception:
+            pass
+print('[boundary] 边界实测表 %s：%d 个周期'
+      % ('已加载' if _BND else '缺失', len(_BND)))
+
+
 def boundary(r):
+    """四级边界证据（逐周期实测，不再默认赋值）
+
+    DATA_EDGE_OR_FROZEN  DQ=D（数据边缘或冻结）
+    BOTH_TRUNCATED       起点晚 >60min 且 止点早 >60min
+    LATE_START           起点比台账晚 >60min（缺前段）
+    EARLY_STOP           止点比台账早 >60min（提前停）
+    LEDGER_EXACT         两端差都 ≤60min（实测确认）
+    UNVERIFIED           无实测边界数据，不下结论
+    """
     if r.DataQualityGrade == 'D':
         return 'DATA_EDGE_OR_FROZEN'
-    if r.PhysicalLifeId.endswith('c38'):
-        return 'LEDGER_OPEN(台账EndTime为空)'
-    if r.LeftTruncated:
-        return 'DATA_EDGE(数据起点)'
-    return 'LEDGER_EXACT'
+    try:
+        c = int(r.LifeCycle)
+    except Exception:
+        return 'UNVERIFIED(无周期号)'
+    if c not in _BND:
+        return 'UNVERIFIED(无边界实测)'
+    d0, d1 = _BND[c]
+    late = (d0 > BOUND_TOL_MIN)
+    early = (d1 == d1) and (d1 < -BOUND_TOL_MIN)
+    if late and early:
+        return 'BOTH_TRUNCATED'
+    if late:
+        return 'LATE_START'
+    if early:
+        return 'EARLY_STOP'
+    return 'LEDGER_EXACT(d0=%+.0f,d1=%+.0f min)' % (d0, d1 if d1 == d1 else float('nan'))
 
 A['BoundaryEvidence'] = A.apply(boundary, axis=1)
 

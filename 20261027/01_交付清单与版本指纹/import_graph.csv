@@ -6,6 +6,7 @@ server.py,fastapi,third_party,2ndPrediction\tool_log\server.py
 server.py,influx_source,local,2ndPrediction\tool_log\server.py
 server.py,json,stdlib,2ndPrediction\tool_log\server.py
 server.py,numpy,third_party,2ndPrediction\tool_log\server.py
+server.py,os,stdlib,2ndPrediction\tool_log\server.py
 server.py,pathlib,stdlib,2ndPrediction\tool_log\server.py
 server.py,pydantic,third_party,2ndPrediction\tool_log\server.py
 server.py,simulator,local,2ndPrediction\tool_log\server.py
