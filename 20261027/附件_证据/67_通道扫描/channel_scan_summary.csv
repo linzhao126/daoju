@@ -1,0 +1,13 @@
+﻿Channel,Delta_ms,破损_n,磨损_n,破损_AUC中位,破损_AUC最大,磨损_AUC中位,破损_峰值倍数,磨损_峰值倍数,判据_通过
+L_spindle_load,32,15,2,0.501,0.521,0.473,8.32,7.92,False
+L_spindle_load,128,15,2,0.493,0.565,0.503,8.28,6.66,False
+L_X_servo_load,32,15,2,0.501,0.536,0.504,3.83,3.43,False
+L_X_servo_load,128,15,2,0.501,0.554,0.498,4.67,5.67,False
+L_Z_servo_load,32,15,2,0.475,0.586,0.578,1.77,2.91,False
+L_Z_servo_load,128,15,2,0.473,0.554,0.602,2.37,4.08,False
+L_C_servo_load,32,0,0,,,,,,False
+L_C_servo_load,128,0,0,,,,,,False
+L_E_servo_load,32,0,0,,,,,,False
+L_E_servo_load,128,0,0,,,,,,False
+L_Y_servo_load,32,15,2,0.494,0.577,0.486,14.93,35.21,False
+L_Y_servo_load,128,15,2,0.501,0.605,0.47,13.24,26.28,False

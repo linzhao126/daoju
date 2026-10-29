@@ -297,12 +297,14 @@ function render(d){
   const hasM0 = (m0 !== null && m0 !== undefined);   // 中位寿命是否算得出来
   const DASH = "—";
 
-  // 分组口径（2026-10-28）：默认按**品番**汇总历史与件数（同一把刀可跨品番）。
-  // 后端 GROUP_MODE=prog 时退化为旧行为。这里把两者都显示出来，避免"为什么件数变多"的误解。
+  // 分组口径（2026-10-29 起）：默认按**主程序**汇总历史与件数（D-04）。
+  // 「品番」那一层（10-28 曾作默认）是 1 号位从程序名前缀推出来的层，非台账字段，已弃用；
+  // 只有显式设 GROUP_MODE=part 才会出现，且标签会带"（已弃用口径）"字样。
   const _g = d.group;
-  $("progTag").textContent = (_g && _g.mode === "part" && _g.part)
+  $("progTag").textContent = ((_g && _g.mode === "part" && _g.part)
     ? " / " + _g.label + " · 程序 " + d.prog
-    : " / 程序 " + d.prog;
+    : " / 程序 " + d.prog) + (d.policy_mode === "MONITOR_ONLY" ? " · 影子观测" : "");
+  // policy_mode=MONITOR_ONLY 时页面明确标"影子观测"：本服务只观测、不出许可（审核 P0-MOD-01）
   $("otherProg").textContent = d.prog === 14 ? "20" : "14";
 
   // 冷启动（从没人点过"换新刀"）时，这个数是"库里该程序的件数"，
@@ -324,6 +326,11 @@ function render(d){
   }else if(!d.judge_ok){
     $("remain").innerHTML = "历史只有 <b>" + nH + "</b> 条（不足 " + d.min_n_p85 +
       " 条）· 中位 " + m0 + " 件可参考，<b>不做换刀判定</b>";
+  }else if(!d.judge_allowed){
+    // 审核 P0-MOD-04：样本够了，但**这把刀的起点没人确认过**（冷启动），
+    // 件数只是"库里这把刀的全部件数"下限，可能横跨好几次换刀 → 不给判定。
+    $("remain").innerHTML = "本刀起点未确认（冷启动，没人点过「换新刀」）· 件数 <b>≥" + used +
+      "</b> 是下限 · <b>不做换刀判定</b><br><span style=\"opacity:.7\">要判定，请在这把刀装上时点一次「换新刀」</span>";
   }else if(d.state === "ok"){
     $("remain").innerHTML = "距复核点还有 <strong>" + Math.max(0, b - used) + "</strong> 件（复核点 " + b + " 件）";
   }else if(d.state === "chk"){
@@ -332,6 +339,13 @@ function render(d){
     $("remain").innerHTML = "建议换刀 · 还剩 <strong>" + Math.max(0, m0 - used) + "</strong> 件到中位寿命";
   }else{
     $("remain").innerHTML = "已超过同程序中位寿命 <strong>" + m0 + "</strong> 件。常见上限 " + p85 + " 是历史统计，不是该等的目标";
+
+  // ---- 默认参考线（0 号位 D-05：k 说不清 → 一律 0.9·M0）
+  // 只作参考，不是换刀许可；两档（grant）结果仍在下方信号区并排显示，标 EXPERIMENTAL。
+  if(d.judge_allowed && d.ref_limit_90){
+    $("remain").innerHTML += '<br><span style="opacity:.7">默认参考线（D-05：崩刃滞后件数说不清 → 一律 0.9×M0）'
+      + '<b>' + d.ref_limit_90 + '</b> 件 · 仅供参考，<b>不构成换刀许可</b></span>';
+  }
   }
 
   // ---- 四格：样本不足时必须显示「—」，不能拿兜底值冒充
@@ -371,10 +385,11 @@ function render(d){
     $("sigTxt").innerHTML = "信号：HI <b>" + d.hi.toFixed(3) + "</b>（相对本观测段参考基线 " + dir + " <b>" +
       Math.abs(pct).toFixed(1) + "%</b>）";
     const g = $("sigLimit");
-    if(!d.judge_ok){
-      // 没有标定过的 M0 → 延长判断这一步根本没有依据，不能当真
+    if(!d.judge_ok || !d.judge_allowed){
+      // 没有标定过的 M0、或起点未确认 → 延长判断这一步根本没有依据，不能当真
       g.className = "";
-      g.textContent = "M0 未标定 → 信号仅供参考，不参与换刀判断";
+      g.textContent = d.judge_ok ? "起点未确认 → 信号仅供参考，不参与换刀判断"
+                                 : "M0 未标定 → 信号仅供参考，不参与换刀判断";
     }else if(d.granted === null){
       g.className = "";
       g.textContent = "到第 " + b + " 件评估";

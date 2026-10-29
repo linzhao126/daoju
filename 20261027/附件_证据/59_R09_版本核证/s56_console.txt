@@ -1,0 +1,38 @@
+============================================================================================
+R09　工程版本交付核证
+============================================================================================
+
+[A] 三份副本一致性
+  server.py                        线上 f336f1d673e0… 交付包 f336f1d673e0… → 一致
+  index.html                       线上 ab397fc15b32… 交付包 ab397fc15b32… → 一致
+  server_stdlib.py（演示用零依赖版）        线上 b65df26dbbd7… 交付包 —… → 不适用（另一套实现）
+
+[B] 隔离副本服务（127.0.0.1:18765，sim 源，库=快照副本）
+  HTTP 200  ok=True
+  code_sha（运行中）= f336f1d673e0 ；磁盘文件 sha256 前 12 位 = f336f1d673e0 → 一致
+  policy_mode=MONITOR_ONLY  safety_permit=False  judge_allowed=False  base_src=cold  used=100
+  exposure_by_segment=[{'seg': 1, 'prog': 17, 'pieces': 45}, {'seg': 2, 'prog': 16, 'pieces': 55}]（合计 100）  段数=2  物理ID=phys_T1111_61166
+  reference_rule=COUNT_H  ref_limit_90=None（0.9xM0）  ref_limit_40=None（D-05）
+  到达延迟 lag：n=0 中位=Nones  P95=Nones  最大=Nones（还没有带 recv_ts 的行（采集重启后才有））
+  页面 index.html 取回 27169 字节
+  副本库 SHA 前后：3fd701389c45 → 3fd701389c45（WAL 模式下写入落在 -wal，SHA 相同不能单独当"未写入"证据）
+  raw_rows 列（迁移后）：['id', 'ts', 'allnum', 'prog', 'x_pos', 'spindle_load', 'spindle_speed', 'feedrate', 'z_pos', 'recv_ts']
+  recv_ts 迁移是否生效：True（老库→补列）
+
+[C] 依赖核证（交付包 environment 共 61 个包）
+  fastapi    要求 0.146.0    实际 0.146.0    environment 0.146.0    → 一致
+  numpy      要求 2.5.2      实际 2.5.2      environment 2.5.2      → 一致
+  pydantic   要求 2.14.1     实际 2.14.1     environment 2.14.1     → 一致
+  uvicorn    要求 0.54.0     实际 0.54.0     environment 0.54.0     → 一致
+
+[D] 数据哈希
+  24_程序归属修正/HI_merged_28.csv                     d54ead9ade9dbea8… vs d54ead9ade9dbea8… → 一致
+  34_P0-01收尾/P01_evidence_all60.csv              80a3f466bca50864… vs 80a3f466bca50864… → 一致
+  附件_证据/52_R02_延长分支审计/r02_grant_audit.csv        96ea1edf6b3c6104… vs 未登记 → 不一致/未登记
+  15_台账真值检验/input/三厂换刀记录.xlsx                    a5f4ae79d309fc11… vs a5f4ae79d309fc11… → 一致
+  03_原始数据与标签/life_audit_4152.csv                 a71115ca851dcc4f… vs a71115ca851dcc4f… → 一致
+
+[E] 测试日志
+  test_f 件数口径      汇总：15 / 15 PASS
+  test_a 训练隔离      PASS 171 / FAIL 0
+  test_g 起点确认      汇总：31 / 31 PASS

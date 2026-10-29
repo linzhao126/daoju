@@ -1,0 +1,5 @@
+﻿包,要求,实际安装,交付包environment,一致
+fastapi,0.146.0,0.146.0,0.146.0,True
+numpy,2.5.2,2.5.2,2.5.2,True
+pydantic,2.14.1,2.14.1,2.14.1,True
+uvicorn,0.54.0,0.54.0,0.54.0,True

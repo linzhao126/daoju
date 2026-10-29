@@ -153,6 +153,13 @@ KEEP = [
     '45_R07_UI证据/ui_phrase_scan.csv',
     '45_R07_UI证据/ui_package_consistency.csv',
     '14_整改执行_v2b/logs/acceptance_check.csv',
+    '14_整改执行_v2b/logs/test_f.log',
+    # ---- 2026-10-29 R02
+    '附件_证据/52_R02_延长分支审计/r02_grant_audit.csv',
+    '附件_证据/52_R02_延长分支审计/r02_hi_noise.csv',
+    '附件_证据/52_R02_延长分支审计/r02_counterfactual_h.csv',
+    '附件_证据/52_R02_延长分支审计/r02_rule_tradeoff.csv',
+    '14_整改执行_v2b/logs/s52.log',
 ]
 n = 0
 for rel in KEEP:
@@ -210,12 +217,25 @@ step "A18 Test-B 因果截断"      "$PY" 13_整改执行_v2/tests/test_b_causal
 step "A19 Test-C 程序混用"      "$PY" 14_整改执行_v2b/tests/test_c_program_mixing.py > "$L2/test_c.log" 2>&1
 step "A20 Test-D 崩刃截断"      "$PY" 14_整改执行_v2b/tests/test_d_chipping_cutoff.py > "$L2/test_d.log" 2>&1
 step "A21 Test-E 换刀不读标签"  "$PY" 14_整改执行_v2b/tests/test_e_switch_truth.py > "$L2/test_e.log" 2>&1
-step "A22 通道映射自检"        "$PY" $S/channel_map.py              > "$L2/channel_map.log" 2>&1
-step "A23 通道映射实证"        "$PY" $S/s41_channel_map_check.py    > "$L2/s41.log" 2>&1
-step "A24 P0-01 逐把证据链"    "$PY" $S/s42_p01_evidence.py          > "$L2/s42.log" 2>&1
-step "A25 四模型独立区间"        "$PY" $S/s43_model_intervals.py       > "$L2/s43.log" 2>&1
-step "A26 R07 UI措辞扫描"        "$PY" $S/s44_r07_ui_scan.py           > "$L2/s44.log" 2>&1
-step "A27 P1-07 台账审计"        "$PY" $S/s45_ledger_audit.py          > "$L2/s45.log" 2>&1
+step "A22 Test-F 件数口径"     "$PY" 14_整改执行_v2b/tests/test_f_piece_count.py > "$L2/test_f.log" 2>&1
+step "A23 通道映射自检"        "$PY" $S/channel_map.py              > "$L2/channel_map.log" 2>&1
+step "A24 通道映射实证"        "$PY" $S/s41_channel_map_check.py    > "$L2/s41.log" 2>&1
+step "A25 P0-01 逐把证据链"    "$PY" $S/s42_p01_evidence.py          > "$L2/s42.log" 2>&1
+step "A26 四模型独立区间"        "$PY" $S/s43_model_intervals.py       > "$L2/s43.log" 2>&1
+step "A27 R07 UI措辞扫描"        "$PY" $S/s44_r07_ui_scan.py           > "$L2/s44.log" 2>&1
+step "A28 P1-07 台账审计"        "$PY" $S/s45_ledger_audit.py          > "$L2/s45.log" 2>&1
+step "A29 R02 延长分支审计"     "$PY" $S/s52_r02_grant_audit.py       > "$L2/s52.log" 2>&1
+step "A30 R04 严格8/宽松26分列"  "$PY" $S/s53_r04_grade_split.py        > "$L2/s53.log" 2>&1
+step "A31 R05 策略安全与收益"   "$PY" $S/s54_r05_policy_safety.py      > "$L2/s54.log" 2>&1
+step "A32 Test-G 起点确认"      "$PY" 14_整改执行_v2b/tests/test_g_start_confirm.py > "$L2/test_g.log" 2>&1
+step "A33 R08 聚类CI与分组"     "$PY" $S/s55_r08_cluster_ci.py         > "$L2/s55.log" 2>&1
+step "A34 R09 版本核证"         "$PY" $S/s56_r09_release_verify.py      > "$L2/s56.log" 2>&1
+step "A35 (k,rho) 决策表"    "$PY" $S/s57_decision_by_k.py           > "$L2/s57.log" 2>&1
+step "A36 Test-H 到达延迟"   "$PY" 14_整改执行_v2b/tests/test_h_recv_ts.py > "$L2/test_h.log" 2>&1
+step "A37 样本就绪自检"      "$PY" $S/s58_ready_check.py            > "$L2/s58.log" 2>&1
+step "A38 采样率需求实验"    "$PY" $S/s59_bandwidth.py              > "$L2/s59.log" 2>&1
+step "A39 六通道扫描"       "$PY" $S/s60_channel_scan.py            > "$L2/s60.log" 2>&1
+step "A40 最优换刀分位"     "$PY" $S/s61_optimal_quantile.py         > "$L2/s61.log" 2>&1
 
 if [ "$FULL" = "1" ]; then
   echo "=========== B 段：可选（需 3.3GB 未过滤原始文件）==========="
@@ -257,12 +277,24 @@ echo "  $L2/test_b.log  40/40 PASS 且 dHI = 0"
 echo "  $L2/test_c.log  4 项 PASS"
 echo "  $L2/test_d.log  9/9 PASS 且 dScore = 0.000e+00"
 echo "  $L2/test_e.log  46/46 PASS 且 Delta 全 0"
+echo "  $L2/test_f.log  15/15 PASS 且 used=107（不是 56）"
 echo "  $L2/channel_map.log  12/12 PASS"
 echo "  $L2/s41.log  L 通道 3/3 有段，R 通道 0/3"
 echo "  $L2/s42.log  可正式验收 8 个周期（c30/31/39/40/49/50/56/59）"
 echo "  $L2/s43.log  四模型 S1 覆盖 0.69~0.83；借 M0-B 区间 Delta 全 >= 0"
 echo "  $L2/s44.log  HARD 措辞 0；IMPLEMENTED 9 / DESIGN_ONLY 6；exit=0"
 echo "  $L2/s45.log  PII 0 命中；7 脚本包内优先 7/7；SHA 三方一致"
+echo "  $L2/test_g.log  31/31 PASS（起点确认 / 五标识 / 02→03→02 / 续设不归零）"
+echo "  $L2/s53.log  L26_eval_L26 M0B 13.57/13.57/9.94/8.00；S8_eval_L26 n=9（D-07 定 10 把）；c28/c29 左截断"
+echo "  $L2/s54.log  锁存放行 12 / 滞回 15；TWO_STAGE@θ=0.8,ρ=10 = 0.0810，带病 87"
+echo "  $L2/s55.log  跨截断 按行CI窄 1.6 倍；part-prog +0.966 CI[0.35,1.53]"
+echo "  $L2/s56.log  code_sha 与磁盘一致；MONITOR_ONLY；reference_rule COUNT_H；lag 可测"
+echo "  $L2/s57.log  k=0 → 一律90%恒最优；两档只在 ρ≈1.3~5 有效"
+echo "  $L2/test_h.log  22/22 PASS（recv_ts：DDL/迁移/写入/打戳/统计）"
+echo "  $L2/s58.log  当前程序还差 N 条历史（P85 需 5 条）"
+echo "  $L2/s59.log  负载表 AUC 0.501、峰值倍数 8.3 vs 7.9、采样率衰减 -0.008 → 只否证负载表"
+echo "  $L2/s60.log  六通道全阴性，最高 AUC 0.586 → 软件通道到此为止"
+echo "  $L2/s61.log  ρ=5: f*=0.54；ρ=1: f*=0.85；最短/M0 与 f* 差 <=0.03"
 '''
 open(os.path.join(BASE, 'run_all.sh'), 'w', encoding='utf-8', newline='\n').write(SH)
 print('[4] run_all.sh 已写')
@@ -285,12 +317,13 @@ NOT = '''# 不可能从本仓库重建的东西（FIX-04 要求单列）
 | 5 | 数据到达延迟 L2 | 库中只有 `_time`（采集时刻），无 `recv_ts`（入库时刻） | "≤1 秒"端到端目标无法评估 |
 | 6 | 3.3 GB 未过滤原始文件 | 超 Git 容量限制（**非保密原因**），未入包 | 只影响 **B 段**（s32/s33/s34/s40）；A/C 段不需要。获取：4152 InfluxDB 的 `FanucNormalData` 导出 09-17~10-27，SHA256 见 `21_新数据标签审计/raw_new_sha256.txt` |
 | 7 | c38 / c51 的真实加工件数 | 台账刀寿 102/100，数据实测 197/170（比值 1.93/1.70），方向为"超出"且无采集解释 | 这两把只能排除出正式验收；待车间确认 |
-| 8 | UI 的浏览器渲染结果与接口响应 | 本轮只改字符串字面量并做了 `node --check` / `py_compile`；未起服务打 `/api/state`（会写 `kv` 表、影响线上基准） | `45_R07_UI证据/45-00` §3 已如实标注"渲染回归未做" |
+| 8 | UI 的**浏览器渲染**结果 | ✅ 接口层已补：`59-00` 用 temp 目录 + 库快照副本 + 端口 18765 起隔离服务，`/api/state` HTTP 200、页面 26,684 字节、`code_sha` 一致、副本库 SHA 前后不变（**不碰生产库**）。<br>⛔ **仍不能重建的是浏览器渲染**：无 JS 执行、无点击、无 CSS 核对 | `45-00` §3"渲染回归未做"仍成立；`59-00` §2.2 已写明边界 |
+| 9b | **DTRQ / TCMD 原始值** | **现场实测读不出**（2026-10-29）：`cnc_loadtorq` / `cnc_diagnoss` 在机器上取不到值；同期六个伺服通道（spindle+X/Y/Z/C/E）瞬态维度全阴性 | 崩刃 A 失去"高分辨率扭矩"候选通道；三条候选全关（`63-00` §4.2 / `67-00`） |
 | 9 | 区间覆盖率的不确定性 | 校准池只有 5–9 把刀，覆盖率点估计 0.69~0.83 但 Wilson 95% 下界 0.40~0.57 | 只能交"点估计 + 宽度"，不能交"区间已校准达标" |
 
 **能重建的**：全部审计表、全部回测、全部单元测试、全部崩刃候选、两批数据等价性、程序归属重标注、分组粒度对比、区间校准、四模型独立预测区间、台账字段审计、UI 措辞扫描。
 
-**重建验收标准**（`bash run_all.sh` 后逐条 grep；2026-10-29 11:05 全量实跑一次，39 步 / 3 分 31 秒 / exit 0）
+**重建验收标准**（`bash run_all.sh` 后逐条 grep；2026-10-29 16:00 全量实跑一次，**43 步 / exit 0**（A 段 40 + 判据 V01 + 打包 2；`--full` 再加 B/C 段））
 
 > ⚠ 判据里给的字符串是**日志里原样存在的片段**，可以直接 `grep` 验证。第一版判据有三处
 > 写的是我概括的短语（`40/40 PASS`、`4 项 PASS`、`AUC_gap = 0.5599`），日志里查不到原串——
@@ -312,6 +345,12 @@ NOT = '''# 不可能从本仓库重建的东西（FIX-04 要求单列）
 | `43_模型区间与不确定性/metrics_all_models_pi.csv` | `S1_Cover` 列 0.60~0.83（点估计），`S1_CIlo` 0.397~0.570（样本不足） |
 | `43_模型区间与不确定性/pi_vs_baseline.csv` | `Delta` 列 48 行全部 ≥ 0 |
 | `logs/g0_check.log` | `合计：PASS 1 / WARN 1 / FAIL 0`（WARN 为非阻塞，见 20-00 的 9 处豁免） |
+| `logs/test_g.log` | `汇总：31 / 31 PASS`（起点确认 / 五标识 / 02→03→02 / 续设不归零） |
+| `logs/s53.log` | `S8_eval_L26` 且 `M0B` 行 `n=7`；含 `覆盖截断假阳性` |
+| `logs/s54.log` | `锁存放行 12 把 / 滞回放行 15 把` 且含 `0.0810`、`0.0824` |
+| `logs/s55.log` | `跨 4 个截断合并后`；宽度被低估 `1.60`/`1.64` |
+| `logs/s56.log` | `code_sha（运行中）= … → 一致` 且 `policy_mode=MONITOR_ONLY  safety_permit=False` |
+| `s46_verify_acceptance.py` | `合计：PASS 38 / FAIL 0` |
 '''
 open(os.path.join(BASE, 'NOT_REPRODUCIBLE.md'), 'w', encoding='utf-8').write(NOT)
 print('[5] NOT_REPRODUCIBLE.md 已写')

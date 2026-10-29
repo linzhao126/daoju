@@ -246,6 +246,13 @@ class InfluxPuller(threading.Thread):
                 # 这个程序固定 F100，按工艺值填，不参与计算
                 "feedrate": 100.0,
             })
+        # ⭐ recv_ts：**这一批被我们拿到的时刻**（R06 P0-a，2026-10-29）
+        #   同一批共用一个值，所以 lag = recv_ts − ts 是**上界**
+        #   （含服务端查询 + 网络传输 + 本地解析）。要拿到点值必须在采集盒侧打点。
+        #   以前完全没有这个字段 → "数据到达延迟"只能"未知"，1 秒目标无法评估。
+        recv = iso(datetime.now(timezone.utc))
+        for r in out:
+            r["recv_ts"] = recv
         out.sort(key=lambda r: r["ts"])
         return out
 

@@ -1,0 +1,52 @@
+{
+  "tmp": "C:\\Users\\C12643\\AppData\\Local\\Temp\\r09_srv_h9m7xb0j",
+  "ok": true,
+  "err": "",
+  "db_sha_before": "3fd701389c45a7a061332bf08fcaac4a491e1a7b5f774c413a425d4c4b9d66f3",
+  "status": 200,
+  "code_sha": "f336f1d673e0",
+  "policy_mode": "MONITOR_ONLY",
+  "safety_permit": false,
+  "judge_allowed": false,
+  "base_src": "cold",
+  "used": 100,
+  "exposure": [
+    {
+      "seg": 1,
+      "prog": 17,
+      "pieces": 45
+    },
+    {
+      "seg": 2,
+      "prog": 16,
+      "pieces": 55
+    }
+  ],
+  "n_seg": 2,
+  "phys": "phys_T1111_61166",
+  "reference_rule": "COUNT_H",
+  "ref_limit_90": null,
+  "ref_limit_40": null,
+  "lag": {
+    "n": 0,
+    "neg": 0,
+    "stale": 0,
+    "note": "还没有带 recv_ts 的行（采集重启后才有）"
+  },
+  "index_bytes": 27169,
+  "db_sha_after": "3fd701389c45a7a061332bf08fcaac4a491e1a7b5f774c413a425d4c4b9d66f3",
+  "raw_cols": [
+    "id",
+    "ts",
+    "allnum",
+    "prog",
+    "x_pos",
+    "spindle_load",
+    "spindle_speed",
+    "feedrate",
+    "z_pos",
+    "recv_ts"
+  ],
+  "recv_ts_migrated": true,
+  "file_sha": "f336f1d673e0daf3c9c0b2401cf03e0341336c057a80364b4654322aebfd8c5e"
+}

@@ -12,10 +12,14 @@
 本脚本补的就是这一块：每个模型用自己的 LOO 残差校准自己的区间。
 
 方法（三档，全部只用本模型自己的残差 r = actual − pred）
-  S1  jackknife+ 对称      PI = pred ± q_{1−α/2}( |r_{−k}| )
+  S1  留一对称分位数        PI = pred ± q_{1−α/2}( |r_{−k}| )
+      ⚠ 不是严格 jackknife+。严格构造要逐个 i 用 pred_{−i} 配自身残差，本实现只用
+        q(|r_{−k}|) 当半宽 → 不继承 Barber 2021 的有限样本覆盖保证（审核 P1-MET-02）。
   S2  conformal 非对称     PI = pred + q_{α/2}(r_{−k}) ~ pred + q_{1−α/2}(r_{−k})
   S3  正态近似            PI = pred ± z_{1−α/2} · sd(r_{−k})
-其中 r_{−k} = 同 Source / 同 CutoffN / 同品番组（同 prog）里**除测试刀 k 之外**全部刀的残差。
+其中 r_{−k} = 同 Source / 同 CutoffN / 同分组（prog 或 part）里**除测试刀 k 之外**全部刀的残差。
+注意 CalScope 只影响"用谁的残差定宽度"，**不改变预测值**；因此不同 CalScope 下 MAE 的差异
+来自样本子集（残差池不足 3 个的刀被剔除），不能读成"分组方式影响预测精度"。
 
 为什么 r_{−k} 站得住
   pred_j 由 `bt_core.nested_predict(j)` 产生，其训练池已剔除 j（外层留一）；所以 r_j 是

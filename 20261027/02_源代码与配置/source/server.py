@@ -45,6 +45,7 @@
 
 import os
 import argparse
+import hashlib
 import json
 import sqlite3
 import threading
@@ -67,6 +68,22 @@ HERE = Path(__file__).parent
 DB_PATH = HERE / "data" / "tool.db"
 INDEX = HERE / "index.html"
 
+
+def _self_sha():
+    """本文件自身的 SHA256（前 12 位）。
+
+    ⭐ 审核 R09 要求「源代码真实运行版本 hash」：光有文件哈希不够，因为分不清
+       "磁盘上这份"和"进程里跑的那份"。启动时算一次、随 /api/state 返回，
+       才能证明"页面上看到的判定来自哪个版本"。
+    """
+    try:
+        return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:12]
+    except Exception:
+        return "UNKNOWN"
+
+
+CODE_SHA = _self_sha()
+
 # ---- 决策参数（与 bin_decision.py 保持一致）
 K_BASE = 20        # 新刀基线取前几件
 W = 10             # 信号平滑窗口
@@ -83,39 +100,77 @@ MIN_N_P85 = 5        # 常见上限 + 0.4/0.9 判定线 至少要 5 条
                      # 依据：n=7 时 P85 的 bootstrap 区间是 [85,197]，跨度 103%
 EXP_M0 = 100.0       # 无历史时的"经验提示值"，只作提示线，不参与任何判定
 
+# 本服务只接一把刀（pieces 表无刀号列），但这个标识必须显式存在：
+# R03 要求把 "PhysicalToolLifeId" 与 "ProgramSegmentId" 分开命名，不能靠"整库只有一把刀"隐含。
+TOOL_NO = os.environ.get("TOOL_NO", "T1111")
+
 # ---------------------------------------------------------------- 分组粒度
-# 0 号位 2026-10-28 裁决：换品番时不换刀，允许一把刀跨品番。
-# 于是「同一把刀」的历史应当按**品番**汇总，不是按程序。
+# ⭐⭐ 0 号位 2026-10-29 裁决（D-04，见 19-00）：
+#     **按主程序计件与统计，不使用「品番」这一层。**
 #
-# 实测依据（见 20261026/回复/20261027/26-00）：
-#   1) 7 个程序其实是 2 个品番下的不同工序（程序名形如 C5G25-02-BAR331）
-#   2) 4 个跨品番/跨工序周期的两段负荷比只有 1.01~1.06，而单件噪声 σ≈2% → 同量级
-#   3) 按品番分组的 M0 显著优于按程序（同样本 ΔMAE −0.966，CI[−1.407,−0.327]）
-#   4) 按程序分组时每组平均只有 6.9 把刀 → 过拟合
+# 为什么推翻 10-28 的"按品番"：
+#   1) 「品番」不是数据字段，也不是台账字段——是我从程序名 `C5G25-02-BAR331` 里劈出来的
+#      推断（台账 Sheet2 只有一句"同缸径品番段取，刀具基本共通"，没有编码）。
+#      生产系统的口径不能建立在一个推断出来的层上。
+#   2) 精度上本来就不成立：28 周期、剔 c38/c51、按主程序 vs 按品番
+#        N=20/40 主程序 **13.571** vs 品番 14.192（主程序更好）
+#        N=60    主程序  9.944  vs 品番 **9.045**
+#        N=80    主程序  8.000  vs 品番 **7.694**
+#      差 ≤1 件、方向随截断点翻转（见 51-00），不足以支撑"品番更优"。
+#   3) 按主程序每组 8/9/6/2/1/1/1 把刀 → 有 3 个程序样本 <3，必须走全局回退，
+#      这比"合并成 2 组假装样本够"更诚实。
 #
-# ⚠ 这不只是"更准"，还修了一个真 bug：按 prog 过滤会**漏掉跨品番的件**
-#   （c33 若按 prog=19 只数 56 件，实际这把刀干了 107 件）
+# ⚠ 仍然存在的缺陷（**未修，属 R03，见 49-00**）：
+#   按主程序过滤会漏掉"同一把刀跨程序加工"的件（c33 按 prog=19 只数 56，实际 107）。
+#   正确解法是物理刃口 ID + 跨程序累计，不是把程序合并成"品番"。
+#
+# `GROUP_MODE=part` 仅保留作对照/排查（已弃用，不参与默认口径）。
 PART_PROGS = {
-    '02': [11, 13, 14],          # C5G25-02：ACE-AR321 / AAR331 / BAR331
-    '03': [16, 17, 19, 20],      # C5G25-03：ACE-AR421 / AAR331 / BDF-AR421 / BAR331
+    '02': [11, 13, 14],          # ⚠ 推断层（程序名前缀），非台账字段
+    '03': [16, 17, 19, 20],      # ⚠ 同上
 }
 
-# 回退开关：设 GROUP_MODE=prog 可退回"按程序"的旧行为（对比/排查用）
-GROUP_MODE = os.environ.get("GROUP_MODE", "part")
+# 默认 = 按主程序（D-04）。设 GROUP_MODE=part 才走已弃用的品番合并。
+GROUP_MODE = os.environ.get("GROUP_MODE", "prog")
+
+# ---------------------------------------------------------------- 判定策略（2026-10-29 加）
+# ⭐ 审核 P0-MOD-01 要求：线上判定暂定位为 MONITOR_ONLY / EXPERIMENTAL_POLICY，不得提供安全许可。
+#   含义：本服务只**观测**、只给"参考线"，不给任何形式的"可以继续用 / 安全延寿"许可。
+#   `safety_permit` 恒 False，任何调用方都不许把它当换刀依据；
+#   要改成真正参与换刀决策，必须另有 0 号位的工艺评审批准（不是改个环境变量就生效）。
+POLICY_MODE = os.environ.get("POLICY_MODE", "MONITOR_ONLY")
+# 允许出现的取值：MONITOR_ONLY（默认，影子）/ EXPERIMENTAL_POLICY（仍不出许可，仅标记为实验口径）
+POLICY_MODES = ("MONITOR_ONLY", "EXPERIMENTAL_POLICY")
+if POLICY_MODE not in POLICY_MODES:
+    POLICY_MODE = "MONITOR_ONLY"
+SAFETY_PERMIT = False        # 写死：本版本永不出具安全许可
+
+# ---------------------------------------------------------------- 默认参考线（0 号位 D-05，2026-10-29）
+# 裁决原文：「k（崩后平均几件才发现）说不清 → 走默认」。
+# 默认 = 一律到 0.9·M0 就换（COUNT_H），依据见 61-00 §1.4：
+#   k=0 时它在 ρ>0.25 的**整个区间**都最省；k 说不清时它也是全区间接近最优、
+#   且不依赖任何信号（不需要 HI、不需要延长判断、不需要台账），出错面最小。
+#
+# ⚠ 这只是**参考线**，不是换刀许可：
+#   1) `SAFETY_PERMIT` 恒 False；2) `judge_allowed` 门禁仍生效（起点未确认不给线）；
+#   3) 两档逻辑（grant 锁存）**原样保留**，作为 EXPERIMENTAL 对照，页面并排显示。
+REFERENCE_RULE = os.environ.get("REFERENCE_RULE", "COUNT_H")   # COUNT_H | TWO_STAGE
+if REFERENCE_RULE not in ("COUNT_H", "TWO_STAGE"):
+    REFERENCE_RULE = "COUNT_H"
 
 
 def group_progs(prog):
-    """返回与 prog 同组的所有程序号。
+    """返回参与"同一把刀历史"统计的程序号集合。
 
-    GROUP_MODE='part' → 同品番下的全部程序（推荐，默认）
-    GROUP_MODE='prog' → 只返回自身（旧行为，可回退）
+    GROUP_MODE='prog' → 只返回自身（默认，D-04 按主程序）
+    GROUP_MODE='part' → 同"品番"下的全部程序（**已弃用**，仅对照用）
     未知程序（不在映射表里）→ 只返回自身，安全回退
     """
     try:
         prog = int(prog)
     except (TypeError, ValueError):
         return [prog]
-    if GROUP_MODE == "prog":
+    if GROUP_MODE != "part":
         return [prog]
     for _part, ps in PART_PROGS.items():
         if prog in ps:
@@ -165,7 +220,8 @@ CREATE TABLE raw_rows(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts TEXT NOT NULL UNIQUE,
     allnum INTEGER, prog INTEGER,
-    x_pos REAL, z_pos REAL, spindle_load REAL, spindle_speed REAL, feedrate REAL);
+    x_pos REAL, z_pos REAL, spindle_load REAL, spindle_speed REAL, feedrate REAL,
+    recv_ts TEXT);
 """
 
 
@@ -193,7 +249,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ts TEXT NOT NULL UNIQUE,
             allnum INTEGER, prog INTEGER,
-            x_pos REAL, z_pos REAL, spindle_load REAL, spindle_speed REAL, feedrate REAL);
+            x_pos REAL, z_pos REAL, spindle_load REAL, spindle_speed REAL, feedrate REAL,
+            recv_ts TEXT);
         CREATE INDEX IF NOT EXISTS i_raw_allnum ON raw_rows(allnum);
         CREATE INDEX IF NOT EXISTS i_raw_ts ON raw_rows(ts);
 
@@ -256,6 +313,17 @@ def init_db():
             c.execute("ALTER TABLE raw_rows ADD COLUMN z_pos REAL")
             c.commit()
             print("[迁移] raw_rows 已补 z_pos 列（旧行为 NULL，对齐时自动跳过 Z 带）")
+
+        # ⭐ 2026-10-29（R06 P0-a）：补 recv_ts —— "我们拿到这一行的时刻"
+        #   有了它，数据到达延迟 L2 从"完全未知"变成"每行可算"：
+        #       lag = parse_iso(recv_ts) − parse_iso(ts)
+        #   recv_ts 是**批量写入时**打的戳（同一批共用一个值），所以 lag 是**上界**
+        #   （包含查询+传输+解析），不是点值。要更细就得在采集盒侧打点。
+        #   旧行为 NULL → lag 统计自动跳过，不污染。
+        if "recv_ts" not in raw_cols:
+            c.execute("ALTER TABLE raw_rows ADD COLUMN recv_ts TEXT")
+            c.commit()
+            print("[迁移] raw_rows 已补 recv_ts 列（旧行为 NULL，延迟统计自动跳过）")
 
         piece_cols = [r[1] for r in c.execute("PRAGMA table_info(pieces)").fetchall()]
         if "curve" not in piece_cols:
@@ -320,9 +388,10 @@ def write_rows(rows):
             before = c.total_changes
             c.executemany(
                 "INSERT OR IGNORE INTO raw_rows(ts,allnum,prog,x_pos,z_pos,spindle_load,"
-                "spindle_speed,feedrate) VALUES(?,?,?,?,?,?,?,?)",
+                "spindle_speed,feedrate,recv_ts) VALUES(?,?,?,?,?,?,?,?,?)",
                 [(r["ts"], r["allnum"], r["prog"], r["x_pos"], r.get("z_pos"),
-                  r["spindle_load"], r["spindle_speed"], r["feedrate"]) for r in rows])
+                  r["spindle_load"], r["spindle_speed"], r["feedrate"],
+                  r.get("recv_ts")) for r in rows])
             c.commit()
             return c.total_changes - before
         except Exception:
@@ -575,6 +644,56 @@ class Simulator(threading.Thread):
 SIM = Simulator()
 
 
+# ---------------------------------------------------------------- 到达延迟（R06 P0-a）
+def lag_stats(limit=2000):
+    """数据到达延迟 L2 = recv_ts − ts（秒）。
+
+    ⚠ 口径必须说清：
+      * `ts`     = 数据在机床侧产生的时刻（_time）
+      * `recv_ts`= **我们把这一批写进库**的时刻，同一批共用一个值
+      * 所以 lag 是**上界**：含 Influx 查询 + 网络 + 解析。
+        若要"采集盒→库"的点值，必须在采集盒侧打点（本轮做不到）。
+      * 只统计 recv_ts 非 NULL 的行：加列之前的老行自动跳过。
+      * 负值（时钟不同步）丢弃并计数；>1 天的丢弃（停机跨天不算延迟）。
+
+    为什么要它：`06-00` 里 L2 是"未知"，而它是"1 秒能不能做到"的第一决定项。
+    有了这组数，"当前链路 135 秒"就从断言变成可复算。
+    """
+    try:
+        rows = db().execute(
+            "SELECT ts, recv_ts FROM raw_rows WHERE recv_ts IS NOT NULL "
+            "ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    except Exception:
+        return {"n": 0, "note": "raw_rows 读取失败"}
+    vals, neg, stale = [], 0, 0
+    for r in rows:
+        try:
+            d = (parse_iso(r["recv_ts"]) - parse_iso(r["ts"])).total_seconds()
+        except Exception:
+            continue
+        if d < 0:
+            neg += 1
+            continue
+        if d > 86400:
+            stale += 1
+            continue
+        vals.append(d)
+    if not vals:
+        return {"n": 0, "neg": neg, "stale": stale,
+                "note": "还没有带 recv_ts 的行（采集重启后才有）"}
+    v = np.array(sorted(vals), dtype=float)
+    return {
+        "n": int(len(v)),
+        "median_sec": round(float(np.median(v)), 3),
+        "p95_sec": round(float(np.percentile(v, 95)), 3),
+        "max_sec": round(float(v.max()), 3),
+        "min_sec": round(float(v.min()), 3),
+        "neg": neg,           # 时钟不同步的条数（应为 0）
+        "stale": stale,       # 超过 1 天的（停机跨天，不算延迟）
+        "note": "recv_ts 是批量写入时刻 → 该值是上界（含查询+传输+解析）",
+    }
+
+
 # ---------------------------------------------------------------- 判定层
 def compute_view():
     c = db()
@@ -583,17 +702,20 @@ def compute_view():
     # 真实设备会换程序（4152 现在跑 17），写死 SIM.prog 会拿错 M0
     prog = current_prog()
 
-    # ---- 当前刀基准：最后一次"已换新刀"的 allnum；没有就用最早的一件
-    # 按品番汇总（GROUP_MODE=prog 时退化为只含自身）
-    progs = group_progs(prog)
+    # ---- 两套口径，必须分开（D-04 + 2026-10-29 件数修正）
+    #   【口径 A：物理件数】"这把刀一共干了多少件" —— **不加任何程序过滤**
+    #       pieces 表整库只有 T1111 一把刀的数据（无刀号列），所以 COUNT(*) 就是这把刀的件数。
+    #       加 prog 过滤会把同一把刀跨程序的件劈掉：c33 实测 107 件 = prog20 的 51 + prog19 的 56，
+    #       只数 prog19 会显示 56 件 → 直接导致延迟换刀。
+    #   【口径 B：统计基准】"这类刀通常能干多少件" —— 按主程序（D-04），即当前 prog 的历史。
+    progs = group_progs(prog)      # 只用于口径 B（hist / M0 / P85）
     ph = _ph(len(progs))
     part = part_of(prog)
 
+    # 基准与件数都走口径 A：任何程序下的"已换新刀"都该重置这把刀的刀龄
     last_new = c.execute(
-        "SELECT allnum FROM tool_events WHERE event='new' AND prog IN " + ph +
-        " ORDER BY id DESC LIMIT 1", progs).fetchone()
-    r_min = c.execute("SELECT MIN(allnum) m, MAX(allnum) x FROM pieces WHERE prog IN " + ph,
-                      progs).fetchone()
+        "SELECT allnum FROM tool_events WHERE event='new' ORDER BY id DESC LIMIT 1").fetchone()
+    r_min = c.execute("SELECT MIN(allnum) m, MAX(allnum) x FROM pieces").fetchone()
     if r_min is None or r_min["m"] is None:
         # 文案要跟数据源匹配：influx 模式下"点下面的开始"是模拟器专用说法，会让人乱按
         if SOURCE == "influx":
@@ -611,8 +733,27 @@ def compute_view():
     # 别的刀每加工一件 allnum 也 +1。实时流里 T1111 的 allnum 从 61000 跳到 61143，
     # 差值 143，但其中只有 43 件是 T1111 干的。
     # 离线 CSV 是过滤后的单刀数据，差值恰好等于件数，所以当年没暴露出这个问题。
-    used = c.execute("SELECT COUNT(*) FROM pieces WHERE prog IN " + ph + " AND allnum>?",
-                     progs + [base_allnum]).fetchone()[0]
+    # ⚠ 但不加 prog 过滤是对的（2026-10-29 改）：pieces 只存 T1111，跨程序仍属同一把刀。
+    used = c.execute("SELECT COUNT(*) FROM pieces WHERE allnum>?",
+                     (base_allnum,)).fetchone()[0]
+
+    # ---- 物理刃口的暴露明细（审核 P0-MOD-03 / R03）
+    # 一把刀从 base 到现在参加过哪些程序段、各多少件。
+    # 这就是 "ExposureBySegment"：**刀龄跨全部程序累计，只是把它摊开能看到**。
+    # 程序段数（RunCount）用"相邻 prog 变化次数 + 1"算，不能用 distinct prog 数——
+    # 11→20→11 是两个程序段还是一次调用，必须按**连续段**计。
+    seg_seq = [r[0] for r in c.execute(
+        "SELECT prog FROM pieces WHERE allnum>? ORDER BY allnum", (base_allnum,)).fetchall()]
+    exposure, n_segments, cur = [], 0, None
+    for pg in seg_seq:
+        if cur is None or pg != cur:
+            n_segments += 1
+            exposure.append({"seg": n_segments, "prog": pg, "pieces": 0})
+            cur = pg
+        exposure[-1]["pieces"] += 1
+    # 物理刃口 ID：本库只存一把刀（pieces 无刀号列），所以 ID 由"起点件号"唯一确定。
+    # 不随程序切换而变 —— 这是 R03 要求的"PhysicalToolLifeId 不随品番切换"。
+    phys_life_id = "phys_%s_%d" % (TOOL_NO, base_allnum)
 
     # ---- 历史寿命 → 最短 / 中位 / 常见上限 / 最长
     # ⚠ 这四格统计的是"同程序历史换刀记录"，跟当前这把刀无关，换刀不会改变它们。
@@ -637,10 +778,16 @@ def compute_view():
         p85 = float(np.percentile(hist, 85))
     # judge_ok=False → 页面只准显示件数，不许给"延长判断/建议换刀"这类判定
     judge_ok = (m0 is not None and p85 is not None)
+    # ⭐ 审核 P0-MOD-04：`judge_ok` 只检查"历史样本够不够"，**不检查这把刀的起点是不是人工确认过的新刀**。
+    #    冷启动时 `base_allnum = min_allnum-1`，件数是"库里这把刀全部件数"，可能横跨好几次换刀 →
+    #    这种刀拿到复核点 / 延长线毫无依据（虽然数字方向偏大、安全，但仍属"用未知起点做判定"）。
+    #    所以把判定资格单独拆一个字段：样本够 ≠ 有资格判定。
+    start_confirmed = (last_new is not None)
+    judge_allowed = bool(judge_ok and start_confirmed)
 
-    # 判定线只在样本够的时候才有意义；不够就 None，页面显示「—」
-    b = int(np.ceil(BASE_F * m0)) if judge_ok else None
-    h = int(np.ceil(EXT_F * m0)) if judge_ok else None
+    # 判定线只在样本够**且起点已确认**的时候才有意义；否则 None，页面显示「—」
+    b = int(np.ceil(BASE_F * m0)) if judge_allowed else None
+    h = int(np.ceil(EXT_F * m0)) if judge_allowed else None
 
     # ---- 当前这把刀的 HI 序列
     rows = c.execute(
@@ -656,12 +803,15 @@ def compute_view():
             hi_now = float(np.median(hi_all[-W:]))
 
     # ---- 延长判断：跨过 base 时评估一次，锁存，之后不再改
-    gkey = "grant_%d_%d" % (prog, base_allnum)
+    # 键里**不带 prog**：换程序不等于换刀，锁存状态必须跟着这把刀走（原 660 行带 prog，
+    # 换程序后会读不到旧键、重新评估一次，属 R03 缺陷 D3）
+    gkey = "grant_b%d" % base_allnum
     granted = None
-    if not judge_ok:
-        # 样本不足：不做延长判断，也不写 kv。
+    if not judge_allowed:
+        # 样本不足 **或** 起点未确认：不做延长判断，也不写 kv。
         # 写 kv 会让锁存状态一直留着，等以后样本够了还沿用当时那个没依据的判断。
-        limit, limit_txt = None, "未标定，不给换刀点"
+        limit, limit_txt = None, ("未标定，不给换刀点" if not judge_ok else "起点未确认，只报件数")
+
     else:
         gv = kv_get(gkey)
         if gv is not None:
@@ -678,8 +828,8 @@ def compute_view():
             limit, limit_txt = b, "信号未确认，按基准复核"
 
     # ---- 四档状态（判定只看 M0，不看 P85）
-    # 样本不足时降到 cnt（件数提示），不给任何"该不该换"的判断
-    if not judge_ok:
+    # 样本不足 / 起点未确认时降到 cnt（件数提示），不给任何"该不该换"的判断
+    if not judge_allowed:
         st = "cnt"
     elif used >= m0:
         st = "bad"
@@ -701,14 +851,15 @@ def compute_view():
     return {
         "ok": True,
         "prog": prog,
-        # 分组口径：part = 按品番（默认，同一把刀跨品番时件数与历史都合并）
-        #           prog = 按程序（旧行为，GROUP_MODE=prog 时退化为这个）
+        # 分组口径：prog = 按主程序（默认，D-04）
+        #           part = 按"品番"合并（已弃用，仅 GROUP_MODE=part 时出现）
         "group": {
             "mode": GROUP_MODE,
             "part": part,
             "progs": progs,
-            "label": ("品番 C5G25-" + part) if (GROUP_MODE == "part" and part)
-                     else ("程序 " + str(prog)),
+            "label": ("品番 C5G25-" + part + "（已弃用口径）")
+                     if (GROUP_MODE == "part" and part)
+                     else ("主程序 " + str(prog)),
         },
         "no_hist": no_hist,
         "allnum": max_allnum,
@@ -717,13 +868,30 @@ def compute_view():
         #   event = 有人点过"换新刀"，件数精确
         #   cold  = 冷启动，件数只能当"至少这么多件"（上限），页面显示 ≥N
         "base_src": "event" if last_new else "cold",
+        # ---- R03 的五个标识，必须分开命名（审核 P0-MOD-03）
+        "phys_life_id": phys_life_id,          # 物理刃口，换程序不变
+        "segment_id": "p%d" % prog,            # 当前程序段（PartSegmentId/ProgramSegmentId 同源）
+        "base_segment_id": "p%d" % (exposure[0]["prog"] if exposure else prog),
+        "tool_invocation_index": n_segments,   # 从起点到现在跨过几个连续程序段（RunCount）
+        "exposure_by_segment": exposure,       # 各段件数，合计 = used
         "used": used,
         "m0": r1(m0), "p85": r1(p85),
         "hmin": r1(hmin), "hmax": r1(hmax),
         "n_hist": n_real,              # 真实历史条数（0 = 没标定）
         "n_real": n_real,
         "n_invalid": n_invalid,
-        "judge_ok": judge_ok,
+        "judge_ok": judge_ok,                  # 样本够不够（统计层面）
+        "judge_allowed": judge_allowed,        # 有没有资格给换刀判定（还要起点已确认）
+        "start_confirmed": start_confirmed,    # 这把刀的起点是不是人工确认过的新刀
+        "code_sha": CODE_SHA,                  # 运行中这份 server.py 的 SHA256 前 12 位（R09）
+        # R06 P0-a：数据到达延迟（上界口径）
+        "lag": lag_stats(),
+        # D-05：默认参考线（只作参考，不是许可）
+        "reference_rule": REFERENCE_RULE,      # COUNT_H（默认）/ TWO_STAGE（实验对照）
+        "ref_limit_90": h,                     # 一律 0.9·M0
+        "ref_limit_40": b,                     # 一律 0.4·M0
+        "policy_mode": POLICY_MODE,            # MONITOR_ONLY / EXPERIMENTAL_POLICY
+        "safety_permit": SAFETY_PERMIT,        # 恒 False：本版本不出具任何安全许可
         "min_n_basic": MIN_N_BASIC,
         "min_n_p85": MIN_N_P85,
         "exp_m0": EXP_M0,              # 无历史时的经验提示线（不是判定依据）

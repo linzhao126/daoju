@@ -1,10 +1,22 @@
 ﻿Tag,File,Line,Phrase,Severity,Negated,Why,Context
-live,index.html,383,延长许可,HARD,Y,「已获延长许可」= 把信号当成放行依据,"g.textContent = ""信号未见异常上升 · 仅供参考（参考线 "" + d.limit + "" 件，不构成延长许可）"";"
-live,server.py,112,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）",未知程序（不在映射表里）→ 只返回自身，安全回退
-live,server.py,933,延长许可,HARD,Y,「已获延长许可」= 把信号当成放行依据,"description=""CNC 刀具寿命二档换刀决策：件数配额 + 信号参考线（不构成延长许可）"","
-pkg,index.html,383,延长许可,HARD,Y,「已获延长许可」= 把信号当成放行依据,"g.textContent = ""信号未见异常上升 · 仅供参考（参考线 "" + d.limit + "" 件，不构成延长许可）"";"
-pkg,server.py,112,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）",未知程序（不在映射表里）→ 只返回自身，安全回退
-pkg,server.py,933,延长许可,HARD,Y,「已获延长许可」= 把信号当成放行依据,"description=""CNC 刀具寿命二档换刀决策：件数配额 + 信号参考线（不构成延长许可）"","
+live,index.html,398,延长许可,HARD,Y,「已获延长许可」= 把信号当成放行依据,"g.textContent = ""信号未见异常上升 · 仅供参考（参考线 "" + d.limit + "" 件，不构成延长许可）"";"
+live,server.py,137,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）",# ⭐ 审核 P0-MOD-01 要求：线上判定暂定位为 MONITOR_ONLY / EXPERIMENTAL_POLICY，不得提供安全许可。
+live,server.py,138,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）","#   含义：本服务只**观测**、只给""参考线""，不给任何形式的""可以继续用 / 安全延寿""许可。"
+live,server.py,146,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）",SAFETY_PERMIT = False        # 写死：本版本永不出具安全许可
+live,server.py,150,就换,COMMENT,N,『第 N 件就换』同上,# 默认 = 一律到 0.9·M0 就换（COUNT_H），依据见 61-00 §1.4：
+live,server.py,167,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）",未知程序（不在映射表里）→ 只返回自身，安全回退
+live,server.py,783,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）","#    这种刀拿到复核点 / 延长线毫无依据（虽然数字方向偏大、安全，但仍属""用未知起点做判定""）。"
+live,server.py,894,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）","""safety_permit"": SAFETY_PERMIT,        # 恒 False：本版本不出具任何安全许可"
+live,server.py,1101,延长许可,HARD,Y,「已获延长许可」= 把信号当成放行依据,"description=""CNC 刀具寿命二档换刀决策：件数配额 + 信号参考线（不构成延长许可）"","
+pkg,index.html,398,延长许可,HARD,Y,「已获延长许可」= 把信号当成放行依据,"g.textContent = ""信号未见异常上升 · 仅供参考（参考线 "" + d.limit + "" 件，不构成延长许可）"";"
+pkg,server.py,137,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）",# ⭐ 审核 P0-MOD-01 要求：线上判定暂定位为 MONITOR_ONLY / EXPERIMENTAL_POLICY，不得提供安全许可。
+pkg,server.py,138,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）","#   含义：本服务只**观测**、只给""参考线""，不给任何形式的""可以继续用 / 安全延寿""许可。"
+pkg,server.py,146,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）",SAFETY_PERMIT = False        # 写死：本版本永不出具安全许可
+pkg,server.py,150,就换,COMMENT,N,『第 N 件就换』同上,# 默认 = 一律到 0.9·M0 就换（COUNT_H），依据见 61-00 §1.4：
+pkg,server.py,167,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）",未知程序（不在映射表里）→ 只返回自身，安全回退
+pkg,server.py,783,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）","#    这种刀拿到复核点 / 延长线毫无依据（虽然数字方向偏大、安全，但仍属""用未知起点做判定""）。"
+pkg,server.py,894,安全,SOFT,N,"需看上下文（""不安全生产""vs""已验证安全""）","""safety_permit"": SAFETY_PERMIT,        # 恒 False：本版本不出具任何安全许可"
+pkg,server.py,1101,延长许可,HARD,Y,「已获延长许可」= 把信号当成放行依据,"description=""CNC 刀具寿命二档换刀决策：件数配额 + 信号参考线（不构成延长许可）"","
 before,index.html.before_R07,222,必须换,HARD,N,"把提示写成命令，超出""只提示不许可""定位","const TXT = {ok:""状态正常"", chk:""到复核点了"", sug:""建议换刀"", bad:""已过中位寿命，必须换"","
 before,index.html.before_R07,371,比新刀,HARD,N,"冷启动下没有""新刀""真值，此比较无依据","$(""sigTxt"").innerHTML = ""信号：HI <b>"" + d.hi.toFixed(3) + ""</b>（比新刀 "" + dir + "" <b>"" +"
 before,index.html.before_R07,375,延长许可,COMMENT,N,「已获延长许可」= 把信号当成放行依据,// 没有标定过的 M0 → 延长许可这一步根本没有依据，不能当真

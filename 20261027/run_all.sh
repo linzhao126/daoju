@@ -45,12 +45,25 @@ step "A18 Test-B 因果截断"      "$PY" 13_整改执行_v2/tests/test_b_causal
 step "A19 Test-C 程序混用"      "$PY" 14_整改执行_v2b/tests/test_c_program_mixing.py > "$L2/test_c.log" 2>&1
 step "A20 Test-D 崩刃截断"      "$PY" 14_整改执行_v2b/tests/test_d_chipping_cutoff.py > "$L2/test_d.log" 2>&1
 step "A21 Test-E 换刀不读标签"  "$PY" 14_整改执行_v2b/tests/test_e_switch_truth.py > "$L2/test_e.log" 2>&1
-step "A22 通道映射自检"        "$PY" $S/channel_map.py              > "$L2/channel_map.log" 2>&1
-step "A23 通道映射实证"        "$PY" $S/s41_channel_map_check.py    > "$L2/s41.log" 2>&1
-step "A24 P0-01 逐把证据链"    "$PY" $S/s42_p01_evidence.py          > "$L2/s42.log" 2>&1
-step "A25 四模型独立区间"        "$PY" $S/s43_model_intervals.py       > "$L2/s43.log" 2>&1
-step "A26 R07 UI措辞扫描"        "$PY" $S/s44_r07_ui_scan.py           > "$L2/s44.log" 2>&1
-step "A27 P1-07 台账审计"        "$PY" $S/s45_ledger_audit.py          > "$L2/s45.log" 2>&1
+step "A22 Test-F 件数口径"     "$PY" 14_整改执行_v2b/tests/test_f_piece_count.py > "$L2/test_f.log" 2>&1
+step "A23 通道映射自检"        "$PY" $S/channel_map.py              > "$L2/channel_map.log" 2>&1
+step "A24 通道映射实证"        "$PY" $S/s41_channel_map_check.py    > "$L2/s41.log" 2>&1
+step "A25 P0-01 逐把证据链"    "$PY" $S/s42_p01_evidence.py          > "$L2/s42.log" 2>&1
+step "A26 四模型独立区间"        "$PY" $S/s43_model_intervals.py       > "$L2/s43.log" 2>&1
+step "A27 R07 UI措辞扫描"        "$PY" $S/s44_r07_ui_scan.py           > "$L2/s44.log" 2>&1
+step "A28 P1-07 台账审计"        "$PY" $S/s45_ledger_audit.py          > "$L2/s45.log" 2>&1
+step "A29 R02 延长分支审计"     "$PY" $S/s52_r02_grant_audit.py       > "$L2/s52.log" 2>&1
+step "A30 R04 严格8/宽松26分列"  "$PY" $S/s53_r04_grade_split.py        > "$L2/s53.log" 2>&1
+step "A31 R05 策略安全与收益"   "$PY" $S/s54_r05_policy_safety.py      > "$L2/s54.log" 2>&1
+step "A32 Test-G 起点确认"      "$PY" 14_整改执行_v2b/tests/test_g_start_confirm.py > "$L2/test_g.log" 2>&1
+step "A33 R08 聚类CI与分组"     "$PY" $S/s55_r08_cluster_ci.py         > "$L2/s55.log" 2>&1
+step "A34 R09 版本核证"         "$PY" $S/s56_r09_release_verify.py      > "$L2/s56.log" 2>&1
+step "A35 (k,rho) 决策表"    "$PY" $S/s57_decision_by_k.py           > "$L2/s57.log" 2>&1
+step "A36 Test-H 到达延迟"   "$PY" 14_整改执行_v2b/tests/test_h_recv_ts.py > "$L2/test_h.log" 2>&1
+step "A37 样本就绪自检"      "$PY" $S/s58_ready_check.py            > "$L2/s58.log" 2>&1
+step "A38 采样率需求实验"    "$PY" $S/s59_bandwidth.py              > "$L2/s59.log" 2>&1
+step "A39 六通道扫描"       "$PY" $S/s60_channel_scan.py            > "$L2/s60.log" 2>&1
+step "A40 最优换刀分位"     "$PY" $S/s61_optimal_quantile.py         > "$L2/s61.log" 2>&1
 
 if [ "$FULL" = "1" ]; then
   echo "=========== B 段：可选（需 3.3GB 未过滤原始文件）==========="
@@ -90,9 +103,21 @@ echo "  $L2/test_b.log  40/40 PASS 且 dHI = 0"
 echo "  $L2/test_c.log  4 项 PASS"
 echo "  $L2/test_d.log  9/9 PASS 且 dScore = 0.000e+00"
 echo "  $L2/test_e.log  46/46 PASS 且 Delta 全 0"
+echo "  $L2/test_f.log  15/15 PASS 且 used=107（不是 56）"
 echo "  $L2/channel_map.log  12/12 PASS"
 echo "  $L2/s41.log  L 通道 3/3 有段，R 通道 0/3"
 echo "  $L2/s42.log  可正式验收 8 个周期（c30/31/39/40/49/50/56/59）"
 echo "  $L2/s43.log  四模型 S1 覆盖 0.69~0.83；借 M0-B 区间 Delta 全 >= 0"
 echo "  $L2/s44.log  HARD 措辞 0；IMPLEMENTED 9 / DESIGN_ONLY 6；exit=0"
 echo "  $L2/s45.log  PII 0 命中；7 脚本包内优先 7/7；SHA 三方一致"
+echo "  $L2/test_g.log  31/31 PASS（起点确认 / 五标识 / 02→03→02 / 续设不归零）"
+echo "  $L2/s53.log  L26_eval_L26 M0B 13.57/13.57/9.94/8.00；S8_eval_L26 n=9（D-07 定 10 把）；c28/c29 左截断"
+echo "  $L2/s54.log  锁存放行 12 / 滞回 15；TWO_STAGE@θ=0.8,ρ=10 = 0.0810，带病 87"
+echo "  $L2/s55.log  跨截断 按行CI窄 1.6 倍；part-prog +0.966 CI[0.35,1.53]"
+echo "  $L2/s56.log  code_sha 与磁盘一致；MONITOR_ONLY；reference_rule COUNT_H；lag 可测"
+echo "  $L2/s57.log  k=0 → 一律90%恒最优；两档只在 ρ≈1.3~5 有效"
+echo "  $L2/test_h.log  22/22 PASS（recv_ts：DDL/迁移/写入/打戳/统计）"
+echo "  $L2/s58.log  当前程序还差 N 条历史（P85 需 5 条）"
+echo "  $L2/s59.log  负载表 AUC 0.501、峰值倍数 8.3 vs 7.9、采样率衰减 -0.008 → 只否证负载表"
+echo "  $L2/s60.log  六通道全阴性，最高 AUC 0.586 → 软件通道到此为止"
+echo "  $L2/s61.log  ρ=5: f*=0.54；ρ=1: f*=0.85；最短/M0 与 f* 差 <=0.03"
