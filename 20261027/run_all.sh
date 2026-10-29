@@ -11,7 +11,14 @@
 #   bash run_all.sh --full    # A + B + C（有 3.3GB 时跑全量）
 set -euo pipefail
 cd "$(dirname "$0")"
-PY="${PY:-C:/abc/workBoddyHome刀具/.venv/Scripts/python.exe}"
+# 跨平台 Python 入口（审核 P1-01）：优先环境变量 PY；否则自动探测 python / python3。
+# 不再硬编码某台开发机的绝对路径。需指定时：`PY=/path/to/python bash run_all.sh`。
+if [ -z "${PY:-}" ]; then
+  if command -v python >/dev/null 2>&1; then PY=python
+  elif command -v python3 >/dev/null 2>&1; then PY=python3
+  else echo "找不到 python / python3；请先设环境变量 PY=<解释器路径> 再运行" >&2; exit 2
+  fi
+fi
 export PYTHONUTF8=1
 L=08_本轮可复现执行日志/stdout_stderr
 L2=14_整改执行_v2b/logs
@@ -21,7 +28,8 @@ mkdir -p "$L" "$L2"
 FULL=0
 if [ "${1:-}" = "--full" ]; then FULL=1; fi
 
-step(){ local name="$1"; shift; echo ">>> $name"; "$@" || { echo "FAILED: $*"; exit 1; }; }
+# 逐步退出码：每步回显真实 exit（审核 P1-01）；非 0 立即中止并向上传递该码。
+step(){ local name="$1"; shift; echo ">>> $name"; set +e; "$@"; local rc=$?; set -e; echo "    [exit=$rc] $name"; if [ $rc -ne 0 ]; then echo "FAILED: $*" >&2; exit $rc; fi; }
 
 echo "=========== A 段：必需（无外部依赖）==========="
 step "A01 生命周期审计"         "$PY" $S/s01_build_audit.py        > "$L/s01.log" 2>&1
@@ -64,6 +72,12 @@ step "A37 样本就绪自检"      "$PY" $S/s58_ready_check.py            > "$L2
 step "A38 采样率需求实验"    "$PY" $S/s59_bandwidth.py              > "$L2/s59.log" 2>&1
 step "A39 六通道扫描"       "$PY" $S/s60_channel_scan.py            > "$L2/s60.log" 2>&1
 step "A40 最优换刀分位"     "$PY" $S/s61_optimal_quantile.py         > "$L2/s61.log" 2>&1
+step "A41 Test-I 段/调用契约"  "$PY" 14_整改执行_v2b/tests/test_i_segment_contract.py > "$L2/test_i.log" 2>&1
+step "A42 N03 逐刀真值映射"   "$PY" $S/s62_n03_asof_labeling.py        > "$L2/s62.log" 2>&1
+step "A43 N04 嵌套f与敏感性"   "$PY" $S/s63_n04_nested_f.py             > "$L2/s63.log" 2>&1
+step "A44 N06 隔离影子安全回归" "$PY" $S/s64_n06_shadow_safety.py        > "$L2/s64.log" 2>&1
+step "A45 N07 输入清单+SHA"   "$PY" $S/s65_n07_input_manifest.py       > "$L2/s65.log" 2>&1
+step "A46 N08 目标与引证自检" "$PY" $S/s66_n08_goal_and_citations.py     > "$L2/s66.log" 2>&1
 
 if [ "$FULL" = "1" ]; then
   echo "=========== B 段：可选（需 3.3GB 未过滤原始文件）==========="
@@ -87,7 +101,7 @@ else
 fi
 
 echo "=========== G0 治理自检（非阻塞：只看回执类文档）==========="
-"$PY" $S/check_g0.py 33_治理模板_G0/33-01_R06遵循性检查_模板.md    20_R06_项目目标遵循性检查/20-00_R06_项目目标遵循性检查_v1.0.md    > "$L2/g0_check.log" 2>&1 || echo "  [WARN] G0 自检有告警，详见 $L2/g0_check.log"
+"$PY" $S/check_g0.py 33_治理模板_G0/33-01_R06遵循性检查_模板.md    20_R06_项目目标遵循性检查/20-00_R06_项目目标遵循性检查_v1.0.md    N08_目标遵循性与裁决引证/N08-00_项目目标遵循性检查与裁决引证.md    > "$L2/g0_check.log" 2>&1 || echo "  [WARN] G0 自检有告警，详见 $L2/g0_check.log"
 
 echo "=========== V01 验收判据机检（失败即中止，防止判据空转）==========="
 step "V01 判据机检"             "$PY" $S/s46_verify_acceptance.py      > "$L2/acceptance_check.log" 2>&1
@@ -97,7 +111,7 @@ step "P01 重建 MANIFEST"        "$PY" $S/s09_package.py             > "$L/s09.
 step "P02 重建交付包清单"       "$PY" $S/s26_package_v2.py          > "$L/s26.log" 2>&1
 
 echo "ALL DONE"
-echo "验收看 3 个日志："
+echo "验收看下列日志（具体值以本轮实跑为准，s46 会逐条机检）："
 echo "  $L2/test_a.log  171/171 PASS 且 Delta = 0.000e+00"
 echo "  $L2/test_b.log  40/40 PASS 且 dHI = 0"
 echo "  $L2/test_c.log  4 项 PASS"
@@ -116,8 +130,14 @@ echo "  $L2/s54.log  锁存放行 12 / 滞回 15；TWO_STAGE@θ=0.8,ρ=10 = 0.08
 echo "  $L2/s55.log  跨截断 按行CI窄 1.6 倍；part-prog +0.966 CI[0.35,1.53]"
 echo "  $L2/s56.log  code_sha 与磁盘一致；MONITOR_ONLY；reference_rule COUNT_H；lag 可测"
 echo "  $L2/s57.log  k=0 → 一律90%恒最优；两档只在 ρ≈1.3~5 有效"
-echo "  $L2/test_h.log  22/22 PASS（recv_ts：DDL/迁移/写入/打戳/统计）"
+echo "  $L2/test_h.log  24/24 PASS（recv_ts：DDL/迁移/写入/打戳/统计/改名+盲区）"
 echo "  $L2/s58.log  当前程序还差 N 条历史（P85 需 5 条）"
 echo "  $L2/s59.log  负载表 AUC 0.501、峰值倍数 8.3 vs 7.9、采样率衰减 -0.008 → 只否证负载表"
-echo "  $L2/s60.log  六通道全阴性，最高 AUC 0.586 → 软件通道到此为止"
-echo "  $L2/s61.log  ρ=5: f*=0.54；ρ=1: f*=0.85；最短/M0 与 f* 差 <=0.03"
+echo "  $L2/s60.log  六通道瞬态本组实验未支持，最高 AUC 0.586（不外推为不可行）"
+echo "  $L2/s61.log  ρ=5: f*=0.54；ρ=1: f*=0.85（均为样本内选择，见 s63 OOS）"
+echo "  $L2/test_i.log  11/11 PASS（N02 段≠调用契约：run_segments 行为 + 五键形态）"
+echo "  $L2/s62.log  N03 逐刀 as_of 真值表：C3 可验收 0/28；三口径 27/28 互不相等"
+echo "  $L2/s63.log  N04 嵌套留一刀：样本内 argmin 乐观约 32%；去 c38/c51 后 f* 基本不变"
+echo "  $L2/s64.log  N06 隔离影子：PASS=14 FAIL=0（safety_permit=False/state枚举/不写库）"
+echo "  $L2/s65.log  N07 输入清单+SHA：仓库内/仓库外/缺 逐条标注（不声称全部复现）"
+echo "  $L2/s66.log  N08 裁决引证登记 11 条 + 目标声明自检 + 残留口径扫描（锚点 MISS 即 exit 1）"

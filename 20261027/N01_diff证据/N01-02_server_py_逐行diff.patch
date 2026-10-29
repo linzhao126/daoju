@@ -1,0 +1,293 @@
+﻿diff --git "a/20261027/02_\346\272\220\344\273\243\347\240\201\344\270\216\351\205\215\347\275\256/source/server.py" "b/20261027/02_\346\272\220\344\273\243\347\240\201\344\270\216\351\205\215\347\275\256/source/server.py"
+index f013be4..9cc36f7 100644
+--- "a/20261027/02_\346\272\220\344\273\243\347\240\201\344\270\216\351\205\215\347\275\256/source/server.py"
++++ "b/20261027/02_\346\272\220\344\273\243\347\240\201\344\270\216\351\205\215\347\275\256/source/server.py"
+@@ -45,6 +45,7 @@
+ 
+ import os
+ import argparse
++import hashlib
+ import json
+ import sqlite3
+ import threading
+@@ -67,6 +68,22 @@ HERE = Path(__file__).parent
+ DB_PATH = HERE / "data" / "tool.db"
+ INDEX = HERE / "index.html"
+ 
++
++def _self_sha():
++    """鏈枃浠惰嚜韬殑 SHA256锛堝墠 12 浣嶏級銆?+
++    猸?瀹℃牳 R09 瑕佹眰銆屾簮浠ｇ爜鐪熷疄杩愯鐗堟湰 hash銆嶏細鍏夋湁鏂囦欢鍝堝笇涓嶅锛屽洜涓哄垎涓嶆竻
++       "纾佺洏涓婅繖浠?鍜?杩涚▼閲岃窇鐨勯偅浠?銆傚惎鍔ㄦ椂绠椾竴娆°€侀殢 /api/state 杩斿洖锛?+       鎵嶈兘璇佹槑"椤甸潰涓婄湅鍒扮殑鍒ゅ畾鏉ヨ嚜鍝釜鐗堟湰"銆?+    """
++    try:
++        return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:12]
++    except Exception:
++        return "UNKNOWN"
++
++
++CODE_SHA = _self_sha()
++
+ # ---- 鍐崇瓥鍙傛暟锛堜笌 bin_decision.py 淇濇寔涓€鑷达級
+ K_BASE = 20        # 鏂板垁鍩虹嚎鍙栧墠鍑犱欢
+ W = 10             # 淇″彿骞虫粦绐楀彛
+@@ -83,39 +100,77 @@ MIN_N_P85 = 5        # 甯歌涓婇檺 + 0.4/0.9 鍒ゅ畾绾?鑷冲皯瑕?5 鏉?                      # 渚濇嵁锛歯=7 鏃?P85 鐨?bootstrap 鍖洪棿鏄?[85,197]锛岃法搴?103%
+ EXP_M0 = 100.0       # 鏃犲巻鍙叉椂鐨?缁忛獙鎻愮ず鍊?锛屽彧浣滄彁绀虹嚎锛屼笉鍙備笌浠讳綍鍒ゅ畾
+ 
++# 鏈湇鍔″彧鎺ヤ竴鎶婂垁锛坧ieces 琛ㄦ棤鍒€鍙峰垪锛夛紝浣嗚繖涓爣璇嗗繀椤绘樉寮忓瓨鍦細
++# R03 瑕佹眰鎶?"PhysicalToolLifeId" 涓?"ProgramSegmentId" 鍒嗗紑鍛藉悕锛屼笉鑳介潬"鏁村簱鍙湁涓€鎶婂垁"闅愬惈銆?+TOOL_NO = os.environ.get("TOOL_NO", "T1111")
++
+ # ---------------------------------------------------------------- 鍒嗙粍绮掑害
+-# 0 鍙蜂綅 2026-10-28 瑁佸喅锛氭崲鍝佺暘鏃朵笉鎹㈠垁锛屽厑璁镐竴鎶婂垁璺ㄥ搧鐣€?-# 浜庢槸銆屽悓涓€鎶婂垁銆嶇殑鍘嗗彶搴斿綋鎸?*鍝佺暘**姹囨€伙紝涓嶆槸鎸夌▼搴忋€?+# 猸愨瓙 0 鍙蜂綅 2026-10-29 瑁佸喅锛圖-04锛岃 19-00锛夛細
++#     **鎸変富绋嬪簭璁′欢涓庣粺璁★紝涓嶄娇鐢ㄣ€屽搧鐣€嶈繖涓€灞傘€?*
++#
++# 涓轰粈涔堟帹缈?10-28 鐨?鎸夊搧鐣?锛?+#   1) 銆屽搧鐣€嶄笉鏄暟鎹瓧娈碉紝涔熶笉鏄彴璐﹀瓧娈碘€斺€旀槸鎴戜粠绋嬪簭鍚?`C5G25-02-BAR331` 閲屽妶鍑烘潵鐨?+#      鎺ㄦ柇锛堝彴璐?Sheet2 鍙湁涓€鍙?鍚岀几寰勫搧鐣鍙栵紝鍒€鍏峰熀鏈叡閫?锛屾病鏈夌紪鐮侊級銆?+#      鐢熶骇绯荤粺鐨勫彛寰勪笉鑳藉缓绔嬪湪涓€涓帹鏂嚭鏉ョ殑灞備笂銆?+#   2) 绮惧害涓婃湰鏉ュ氨涓嶆垚绔嬶細28 鍛ㄦ湡銆佸墧 c38/c51銆佹寜涓荤▼搴?vs 鎸夊搧鐣?+#        N=20/40 涓荤▼搴?**13.571** vs 鍝佺暘 14.192锛堜富绋嬪簭鏇村ソ锛?+#        N=60    涓荤▼搴? 9.944  vs 鍝佺暘 **9.045**
++#        N=80    涓荤▼搴? 8.000  vs 鍝佺暘 **7.694**
++#      宸?鈮? 浠躲€佹柟鍚戦殢鎴柇鐐圭炕杞紙瑙?51-00锛夛紝涓嶈冻浠ユ敮鎾?鍝佺暘鏇翠紭"銆?+#   3) 鎸変富绋嬪簭姣忕粍 8/9/6/2/1/1/1 鎶婂垁 鈫?鏈?3 涓▼搴忔牱鏈?<3锛屽繀椤昏蛋鍏ㄥ眬鍥為€€锛?+#      杩欐瘮"鍚堝苟鎴?2 缁勫亣瑁呮牱鏈"鏇磋瘹瀹炪€? #
+-# 瀹炴祴渚濇嵁锛堣 20261026/鍥炲/20261027/26-00锛夛細
+-#   1) 7 涓▼搴忓叾瀹炴槸 2 涓搧鐣笅鐨勪笉鍚屽伐搴忥紙绋嬪簭鍚嶅舰濡?C5G25-02-BAR331锛?-#   2) 4 涓法鍝佺暘/璺ㄥ伐搴忓懆鏈熺殑涓ゆ璐熻嵎姣斿彧鏈?1.01~1.06锛岃€屽崟浠跺櫔澹?蟽鈮?% 鈫?鍚岄噺绾?-#   3) 鎸夊搧鐣垎缁勭殑 M0 鏄捐憲浼樹簬鎸夌▼搴忥紙鍚屾牱鏈?螖MAE 鈭?.966锛孋I[鈭?.407,鈭?.327]锛?-#   4) 鎸夌▼搴忓垎缁勬椂姣忕粍骞冲潎鍙湁 6.9 鎶婂垁 鈫?杩囨嫙鍚?+# 鈿?浠嶇劧瀛樺湪鐨勭己闄凤紙**鏈慨锛屽睘 R03锛岃 49-00**锛夛細
++#   鎸変富绋嬪簭杩囨护浼氭紡鎺?鍚屼竴鎶婂垁璺ㄧ▼搴忓姞宸?鐨勪欢锛坈33 鎸?prog=19 鍙暟 56锛屽疄闄?107锛夈€?+#   姝ｇ‘瑙ｆ硶鏄墿鐞嗗垉鍙?ID + 璺ㄧ▼搴忕疮璁★紝涓嶆槸鎶婄▼搴忓悎骞舵垚"鍝佺暘"銆? #
+-# 鈿?杩欎笉鍙槸"鏇村噯"锛岃繕淇簡涓€涓湡 bug锛氭寜 prog 杩囨护浼?*婕忔帀璺ㄥ搧鐣殑浠?*
+-#   锛坈33 鑻ユ寜 prog=19 鍙暟 56 浠讹紝瀹為檯杩欐妸鍒€骞蹭簡 107 浠讹級
++# `GROUP_MODE=part` 浠呬繚鐣欎綔瀵圭収/鎺掓煡锛堝凡寮冪敤锛屼笉鍙備笌榛樿鍙ｅ緞锛夈€? PART_PROGS = {
+-    '02': [11, 13, 14],          # C5G25-02锛欰CE-AR321 / AAR331 / BAR331
+-    '03': [16, 17, 19, 20],      # C5G25-03锛欰CE-AR421 / AAR331 / BDF-AR421 / BAR331
++    '02': [11, 13, 14],          # 鈿?鎺ㄦ柇灞傦紙绋嬪簭鍚嶅墠缂€锛夛紝闈炲彴璐﹀瓧娈?+    '03': [16, 17, 19, 20],      # 鈿?鍚屼笂
+ }
+ 
+-# 鍥為€€寮€鍏筹細璁?GROUP_MODE=prog 鍙€€鍥?鎸夌▼搴?鐨勬棫琛屼负锛堝姣?鎺掓煡鐢級
+-GROUP_MODE = os.environ.get("GROUP_MODE", "part")
++# 榛樿 = 鎸変富绋嬪簭锛圖-04锛夈€傝 GROUP_MODE=part 鎵嶈蛋宸插純鐢ㄧ殑鍝佺暘鍚堝苟銆?+GROUP_MODE = os.environ.get("GROUP_MODE", "prog")
++
++# ---------------------------------------------------------------- 鍒ゅ畾绛栫暐锛?026-10-29 鍔狅級
++# 猸?瀹℃牳 P0-MOD-01 瑕佹眰锛氱嚎涓婂垽瀹氭殏瀹氫綅涓?MONITOR_ONLY / EXPERIMENTAL_POLICY锛屼笉寰楁彁渚涘畨鍏ㄨ鍙€?+#   鍚箟锛氭湰鏈嶅姟鍙?*瑙傛祴**銆佸彧缁?鍙傝€冪嚎"锛屼笉缁欎换浣曞舰寮忕殑"鍙互缁х画鐢?/ 瀹夊叏寤跺"璁稿彲銆?+#   `safety_permit` 鎭?False锛屼换浣曡皟鐢ㄦ柟閮戒笉璁告妸瀹冨綋鎹㈠垁渚濇嵁锛?+#   瑕佹敼鎴愮湡姝ｅ弬涓庢崲鍒€鍐崇瓥锛屽繀椤诲彟鏈?0 鍙蜂綅鐨勫伐鑹鸿瘎瀹℃壒鍑嗭紙涓嶆槸鏀逛釜鐜鍙橀噺灏辩敓鏁堬級銆?+POLICY_MODE = os.environ.get("POLICY_MODE", "MONITOR_ONLY")
++# 鍏佽鍑虹幇鐨勫彇鍊硷細MONITOR_ONLY锛堥粯璁わ紝褰卞瓙锛? EXPERIMENTAL_POLICY锛堜粛涓嶅嚭璁稿彲锛屼粎鏍囪涓哄疄楠屽彛寰勶級
++POLICY_MODES = ("MONITOR_ONLY", "EXPERIMENTAL_POLICY")
++if POLICY_MODE not in POLICY_MODES:
++    POLICY_MODE = "MONITOR_ONLY"
++SAFETY_PERMIT = False        # 鍐欐锛氭湰鐗堟湰姘镐笉鍑哄叿瀹夊叏璁稿彲
++
++# ---------------------------------------------------------------- 榛樿鍙傝€冪嚎锛? 鍙蜂綅 D-05锛?026-10-29锛?+# 瑁佸喅鍘熸枃锛氥€宬锛堝穿鍚庡钩鍧囧嚑浠舵墠鍙戠幇锛夎涓嶆竻 鈫?璧伴粯璁ゃ€嶃€?+# 榛樿 = 涓€寰嬪埌 0.9路M0 灏辨崲锛圕OUNT_H锛夛紝渚濇嵁瑙?61-00 搂1.4锛?+#   k=0 鏃跺畠鍦?蟻>0.25 鐨?*鏁翠釜鍖洪棿**閮芥渶鐪侊紱k 璇翠笉娓呮椂瀹冧篃鏄叏鍖洪棿鎺ヨ繎鏈€浼樸€?+#   涓斾笉渚濊禆浠讳綍淇″彿锛堜笉闇€瑕?HI銆佷笉闇€瑕佸欢闀垮垽鏂€佷笉闇€瑕佸彴璐︼級锛屽嚭閿欓潰鏈€灏忋€?+#
++# 鈿?杩欏彧鏄?*鍙傝€冪嚎**锛屼笉鏄崲鍒€璁稿彲锛?+#   1) `SAFETY_PERMIT` 鎭?False锛?) `judge_allowed` 闂ㄧ浠嶇敓鏁堬紙璧风偣鏈‘璁や笉缁欑嚎锛夛紱
++#   3) 涓ゆ。閫昏緫锛坓rant 閿佸瓨锛?*鍘熸牱淇濈暀**锛屼綔涓?EXPERIMENTAL 瀵圭収锛岄〉闈㈠苟鎺掓樉绀恒€?+REFERENCE_RULE = os.environ.get("REFERENCE_RULE", "COUNT_H")   # COUNT_H | TWO_STAGE
++if REFERENCE_RULE not in ("COUNT_H", "TWO_STAGE"):
++    REFERENCE_RULE = "COUNT_H"
+ 
+ 
+ def group_progs(prog):
+-    """杩斿洖涓?prog 鍚岀粍鐨勬墍鏈夌▼搴忓彿銆?+    """杩斿洖鍙備笌"鍚屼竴鎶婂垁鍘嗗彶"缁熻鐨勭▼搴忓彿闆嗗悎銆? 
+-    GROUP_MODE='part' 鈫?鍚屽搧鐣笅鐨勫叏閮ㄧ▼搴忥紙鎺ㄨ崘锛岄粯璁わ級
+-    GROUP_MODE='prog' 鈫?鍙繑鍥炶嚜韬紙鏃ц涓猴紝鍙洖閫€锛?+    GROUP_MODE='prog' 鈫?鍙繑鍥炶嚜韬紙榛樿锛孌-04 鎸変富绋嬪簭锛?+    GROUP_MODE='part' 鈫?鍚?鍝佺暘"涓嬬殑鍏ㄩ儴绋嬪簭锛?*宸插純鐢?*锛屼粎瀵圭収鐢級
+     鏈煡绋嬪簭锛堜笉鍦ㄦ槧灏勮〃閲岋級鈫?鍙繑鍥炶嚜韬紝瀹夊叏鍥為€€
+     """
+     try:
+         prog = int(prog)
+     except (TypeError, ValueError):
+         return [prog]
+-    if GROUP_MODE == "prog":
++    if GROUP_MODE != "part":
+         return [prog]
+     for _part, ps in PART_PROGS.items():
+         if prog in ps:
+@@ -165,7 +220,8 @@ CREATE TABLE raw_rows(
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     ts TEXT NOT NULL UNIQUE,
+     allnum INTEGER, prog INTEGER,
+-    x_pos REAL, z_pos REAL, spindle_load REAL, spindle_speed REAL, feedrate REAL);
++    x_pos REAL, z_pos REAL, spindle_load REAL, spindle_speed REAL, feedrate REAL,
++    recv_ts TEXT);
+ """
+ 
+ 
+@@ -193,7 +249,8 @@ def init_db():
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             ts TEXT NOT NULL UNIQUE,
+             allnum INTEGER, prog INTEGER,
+-            x_pos REAL, z_pos REAL, spindle_load REAL, spindle_speed REAL, feedrate REAL);
++            x_pos REAL, z_pos REAL, spindle_load REAL, spindle_speed REAL, feedrate REAL,
++            recv_ts TEXT);
+         CREATE INDEX IF NOT EXISTS i_raw_allnum ON raw_rows(allnum);
+         CREATE INDEX IF NOT EXISTS i_raw_ts ON raw_rows(ts);
+ 
+@@ -257,6 +314,17 @@ def init_db():
+             c.commit()
+             print("[杩佺Щ] raw_rows 宸茶ˉ z_pos 鍒楋紙鏃ц涓?NULL锛屽榻愭椂鑷姩璺宠繃 Z 甯︼級")
+ 
++        # 猸?2026-10-29锛圧06 P0-a锛夛細琛?recv_ts 鈥斺€?"鎴戜滑鎷垮埌杩欎竴琛岀殑鏃跺埢"
++        #   鏈変簡瀹冿紝鏁版嵁鍒拌揪寤惰繜 L2 浠?瀹屽叏鏈煡"鍙樻垚"姣忚鍙畻"锛?+        #       lag = parse_iso(recv_ts) 鈭?parse_iso(ts)
++        #   recv_ts 鏄?*鎵归噺鍐欏叆鏃?*鎵撶殑鎴筹紙鍚屼竴鎵瑰叡鐢ㄤ竴涓€硷級锛屾墍浠?lag 鏄?*涓婄晫**
++        #   锛堝寘鍚煡璇?浼犺緭+瑙ｆ瀽锛夛紝涓嶆槸鐐瑰€笺€傝鏇寸粏灏卞緱鍦ㄩ噰闆嗙洅渚ф墦鐐广€?+        #   鏃ц涓?NULL 鈫?lag 缁熻鑷姩璺宠繃锛屼笉姹℃煋銆?+        if "recv_ts" not in raw_cols:
++            c.execute("ALTER TABLE raw_rows ADD COLUMN recv_ts TEXT")
++            c.commit()
++            print("[杩佺Щ] raw_rows 宸茶ˉ recv_ts 鍒楋紙鏃ц涓?NULL锛屽欢杩熺粺璁¤嚜鍔ㄨ烦杩囷級")
++
+         piece_cols = [r[1] for r in c.execute("PRAGMA table_info(pieces)").fetchall()]
+         if "curve" not in piece_cols:
+             c.execute("ALTER TABLE pieces ADD COLUMN curve TEXT")
+@@ -320,9 +388,10 @@ def write_rows(rows):
+             before = c.total_changes
+             c.executemany(
+                 "INSERT OR IGNORE INTO raw_rows(ts,allnum,prog,x_pos,z_pos,spindle_load,"
+-                "spindle_speed,feedrate) VALUES(?,?,?,?,?,?,?,?)",
++                "spindle_speed,feedrate,recv_ts) VALUES(?,?,?,?,?,?,?,?,?)",
+                 [(r["ts"], r["allnum"], r["prog"], r["x_pos"], r.get("z_pos"),
+-                  r["spindle_load"], r["spindle_speed"], r["feedrate"]) for r in rows])
++                  r["spindle_load"], r["spindle_speed"], r["feedrate"],
++                  r.get("recv_ts")) for r in rows])
+             c.commit()
+             return c.total_changes - before
+         except Exception:
+@@ -575,6 +644,56 @@ class Simulator(threading.Thread):
+ SIM = Simulator()
+ 
+ 
++# ---------------------------------------------------------------- 鍒拌揪寤惰繜锛圧06 P0-a锛?+def lag_stats(limit=2000):
++    """鏁版嵁鍒拌揪寤惰繜 L2 = recv_ts 鈭?ts锛堢锛夈€?+
++    鈿?鍙ｅ緞蹇呴』璇存竻锛?+      * `ts`     = 鏁版嵁鍦ㄦ満搴婁晶浜х敓鐨勬椂鍒伙紙_time锛?+      * `recv_ts`= **鎴戜滑鎶婅繖涓€鎵瑰啓杩涘簱**鐨勬椂鍒伙紝鍚屼竴鎵瑰叡鐢ㄤ竴涓€?+      * 鎵€浠?lag 鏄?*涓婄晫**锛氬惈 Influx 鏌ヨ + 缃戠粶 + 瑙ｆ瀽銆?+        鑻ヨ"閲囬泦鐩掆啋搴?鐨勭偣鍊硷紝蹇呴』鍦ㄩ噰闆嗙洅渚ф墦鐐癸紙鏈疆鍋氫笉鍒帮級銆?+      * 鍙粺璁?recv_ts 闈?NULL 鐨勮锛氬姞鍒椾箣鍓嶇殑鑰佽鑷姩璺宠繃銆?+      * 璐熷€硷紙鏃堕挓涓嶅悓姝ワ級涓㈠純骞惰鏁帮紱>1 澶╃殑涓㈠純锛堝仠鏈鸿法澶╀笉绠楀欢杩燂級銆?+
++    涓轰粈涔堣瀹冿細`06-00` 閲?L2 鏄?鏈煡"锛岃€屽畠鏄?1 绉掕兘涓嶈兘鍋氬埌"鐨勭涓€鍐冲畾椤广€?+    鏈変簡杩欑粍鏁帮紝"褰撳墠閾捐矾 135 绉?灏变粠鏂█鍙樻垚鍙绠椼€?+    """
++    try:
++        rows = db().execute(
++            "SELECT ts, recv_ts FROM raw_rows WHERE recv_ts IS NOT NULL "
++            "ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
++    except Exception:
++        return {"n": 0, "note": "raw_rows 璇诲彇澶辫触"}
++    vals, neg, stale = [], 0, 0
++    for r in rows:
++        try:
++            d = (parse_iso(r["recv_ts"]) - parse_iso(r["ts"])).total_seconds()
++        except Exception:
++            continue
++        if d < 0:
++            neg += 1
++            continue
++        if d > 86400:
++            stale += 1
++            continue
++        vals.append(d)
++    if not vals:
++        return {"n": 0, "neg": neg, "stale": stale,
++                "note": "杩樻病鏈夊甫 recv_ts 鐨勮锛堥噰闆嗛噸鍚悗鎵嶆湁锛?}
++    v = np.array(sorted(vals), dtype=float)
++    return {
++        "n": int(len(v)),
++        "median_sec": round(float(np.median(v)), 3),
++        "p95_sec": round(float(np.percentile(v, 95)), 3),
++        "max_sec": round(float(v.max()), 3),
++        "min_sec": round(float(v.min()), 3),
++        "neg": neg,           # 鏃堕挓涓嶅悓姝ョ殑鏉℃暟锛堝簲涓?0锛?+        "stale": stale,       # 瓒呰繃 1 澶╃殑锛堝仠鏈鸿法澶╋紝涓嶇畻寤惰繜锛?+        "note": "recv_ts 鏄壒閲忓啓鍏ユ椂鍒?鈫?璇ュ€兼槸涓婄晫锛堝惈鏌ヨ+浼犺緭+瑙ｆ瀽锛?,
++    }
++
++
+ # ---------------------------------------------------------------- 鍒ゅ畾灞? def compute_view():
+     c = db()
+@@ -583,17 +702,20 @@ def compute_view():
+     # 鐪熷疄璁惧浼氭崲绋嬪簭锛?152 鐜板湪璺?17锛夛紝鍐欐 SIM.prog 浼氭嬁閿?M0
+     prog = current_prog()
+ 
+-    # ---- 褰撳墠鍒€鍩哄噯锛氭渶鍚庝竴娆?宸叉崲鏂板垁"鐨?allnum锛涙病鏈夊氨鐢ㄦ渶鏃╃殑涓€浠?-    # 鎸夊搧鐣眹鎬伙紙GROUP_MODE=prog 鏃堕€€鍖栦负鍙惈鑷韩锛?-    progs = group_progs(prog)
++    # ---- 涓ゅ鍙ｅ緞锛屽繀椤诲垎寮€锛圖-04 + 2026-10-29 浠舵暟淇锛?+    #   銆愬彛寰?A锛氱墿鐞嗕欢鏁般€?杩欐妸鍒€涓€鍏卞共浜嗗灏戜欢" 鈥斺€?**涓嶅姞浠讳綍绋嬪簭杩囨护**
++    #       pieces 琛ㄦ暣搴撳彧鏈?T1111 涓€鎶婂垁鐨勬暟鎹紙鏃犲垁鍙峰垪锛夛紝鎵€浠?COUNT(*) 灏辨槸杩欐妸鍒€鐨勪欢鏁般€?+    #       鍔?prog 杩囨护浼氭妸鍚屼竴鎶婂垁璺ㄧ▼搴忕殑浠跺妶鎺夛細c33 瀹炴祴 107 浠?= prog20 鐨?51 + prog19 鐨?56锛?+    #       鍙暟 prog19 浼氭樉绀?56 浠?鈫?鐩存帴瀵艰嚧寤惰繜鎹㈠垁銆?+    #   銆愬彛寰?B锛氱粺璁″熀鍑嗐€?杩欑被鍒€閫氬父鑳藉共澶氬皯浠? 鈥斺€?鎸変富绋嬪簭锛圖-04锛夛紝鍗冲綋鍓?prog 鐨勫巻鍙层€?+    progs = group_progs(prog)      # 鍙敤浜庡彛寰?B锛坔ist / M0 / P85锛?     ph = _ph(len(progs))
+     part = part_of(prog)
+ 
++    # 鍩哄噯涓庝欢鏁伴兘璧板彛寰?A锛氫换浣曠▼搴忎笅鐨?宸叉崲鏂板垁"閮借閲嶇疆杩欐妸鍒€鐨勫垁榫?     last_new = c.execute(
+-        "SELECT allnum FROM tool_events WHERE event='new' AND prog IN " + ph +
+-        " ORDER BY id DESC LIMIT 1", progs).fetchone()
+-    r_min = c.execute("SELECT MIN(allnum) m, MAX(allnum) x FROM pieces WHERE prog IN " + ph,
+-                      progs).fetchone()
++        "SELECT allnum FROM tool_events WHERE event='new' ORDER BY id DESC LIMIT 1").fetchone()
++    r_min = c.execute("SELECT MIN(allnum) m, MAX(allnum) x FROM pieces").fetchone()
+     if r_min is None or r_min["m"] is None:
+         # 鏂囨瑕佽窡鏁版嵁婧愬尮閰嶏細influx 妯″紡涓?鐐逛笅闈㈢殑寮€濮?鏄ā鎷熷櫒涓撶敤璇存硶锛屼細璁╀汉涔辨寜
+         if SOURCE == "influx":
+@@ -611,8 +733,27 @@ def compute_view():
+     # 鍒殑鍒€姣忓姞宸ヤ竴浠?allnum 涔?+1銆傚疄鏃舵祦閲?T1111 鐨?allnum 浠?61000 璺冲埌 61143锛?     # 宸€?143锛屼絾鍏朵腑鍙湁 43 浠舵槸 T1111 骞茬殑銆?     # 绂荤嚎 CSV 鏄繃婊ゅ悗鐨勫崟鍒€鏁版嵁锛屽樊鍊兼伆濂界瓑浜庝欢鏁帮紝鎵€浠ュ綋骞存病鏆撮湶鍑鸿繖涓棶棰樸€?-    used = c.execute("SELECT COUNT(*) FROM pieces WHERE prog IN " + ph + " AND allnum>?",
+-                     progs + [base_allnum]).fetchone()[0]
++    # 鈿?浣嗕笉鍔?prog 杩囨护鏄鐨勶紙2026-10-29 鏀癸級锛歱ieces 鍙瓨 T1111锛岃法绋嬪簭浠嶅睘鍚屼竴鎶婂垁銆?+    used = c.execute("SELECT COUNT(*) FROM pieces WHERE allnum>?",
++                     (base_allnum,)).fetchone()[0]
++
++    # ---- 鐗╃悊鍒冨彛鐨勬毚闇叉槑缁嗭紙瀹℃牳 P0-MOD-03 / R03锛?+    # 涓€鎶婂垁浠?base 鍒扮幇鍦ㄥ弬鍔犺繃鍝簺绋嬪簭娈点€佸悇澶氬皯浠躲€?+    # 杩欏氨鏄?"ExposureBySegment"锛?*鍒€榫勮法鍏ㄩ儴绋嬪簭绱锛屽彧鏄妸瀹冩憡寮€鑳界湅鍒?*銆?+    # 绋嬪簭娈垫暟锛圧unCount锛夌敤"鐩搁偦 prog 鍙樺寲娆℃暟 + 1"绠楋紝涓嶈兘鐢?distinct prog 鏁扳€斺€?+    # 11鈫?0鈫?1 鏄袱涓▼搴忔杩樻槸涓€娆¤皟鐢紝蹇呴』鎸?*杩炵画娈?*璁°€?+    seg_seq = [r[0] for r in c.execute(
++        "SELECT prog FROM pieces WHERE allnum>? ORDER BY allnum", (base_allnum,)).fetchall()]
++    exposure, n_segments, cur = [], 0, None
++    for pg in seg_seq:
++        if cur is None or pg != cur:
++            n_segments += 1
++            exposure.append({"seg": n_segments, "prog": pg, "pieces": 0})
++            cur = pg
++        exposure[-1]["pieces"] += 1
++    # 鐗╃悊鍒冨彛 ID锛氭湰搴撳彧瀛樹竴鎶婂垁锛坧ieces 鏃犲垁鍙峰垪锛夛紝鎵€浠?ID 鐢?璧风偣浠跺彿"鍞竴纭畾銆?+    # 涓嶉殢绋嬪簭鍒囨崲鑰屽彉 鈥斺€?杩欐槸 R03 瑕佹眰鐨?PhysicalToolLifeId 涓嶉殢鍝佺暘鍒囨崲"銆?+    phys_life_id = "phys_%s_%d" % (TOOL_NO, base_allnum)
+ 
+     # ---- 鍘嗗彶瀵垮懡 鈫?鏈€鐭?/ 涓綅 / 甯歌涓婇檺 / 鏈€闀?     # 鈿?杩欏洓鏍肩粺璁＄殑鏄?鍚岀▼搴忓巻鍙叉崲鍒€璁板綍"锛岃窡褰撳墠杩欐妸鍒€鏃犲叧锛屾崲鍒€涓嶄細鏀瑰彉瀹冧滑銆?@@ -637,10 +778,16 @@ def compute_view():
+         p85 = float(np.percentile(hist, 85))
+     # judge_ok=False 鈫?椤甸潰鍙噯鏄剧ず浠舵暟锛屼笉璁哥粰"寤堕暱鍒ゆ柇/寤鸿鎹㈠垁"杩欑被鍒ゅ畾
+     judge_ok = (m0 is not None and p85 is not None)
++    # 猸?瀹℃牳 P0-MOD-04锛歚judge_ok` 鍙鏌?鍘嗗彶鏍锋湰澶熶笉澶?锛?*涓嶆鏌ヨ繖鎶婂垁鐨勮捣鐐规槸涓嶆槸浜哄伐纭杩囩殑鏂板垁**銆?+    #    鍐峰惎鍔ㄦ椂 `base_allnum = min_allnum-1`锛屼欢鏁版槸"搴撻噷杩欐妸鍒€鍏ㄩ儴浠舵暟"锛屽彲鑳芥í璺ㄥソ鍑犳鎹㈠垁 鈫?+    #    杩欑鍒€鎷垮埌澶嶆牳鐐?/ 寤堕暱绾挎鏃犱緷鎹紙铏界劧鏁板瓧鏂瑰悜鍋忓ぇ銆佸畨鍏紝浣嗕粛灞?鐢ㄦ湭鐭ヨ捣鐐瑰仛鍒ゅ畾"锛夈€?+    #    鎵€浠ユ妸鍒ゅ畾璧勬牸鍗曠嫭鎷嗕竴涓瓧娈碉細鏍锋湰澶?鈮?鏈夎祫鏍煎垽瀹氥€?+    start_confirmed = (last_new is not None)
++    judge_allowed = bool(judge_ok and start_confirmed)
+ 
+-    # 鍒ゅ畾绾垮彧鍦ㄦ牱鏈鐨勬椂鍊欐墠鏈夋剰涔夛紱涓嶅灏?None锛岄〉闈㈡樉绀恒€屸€斻€?-    b = int(np.ceil(BASE_F * m0)) if judge_ok else None
+-    h = int(np.ceil(EXT_F * m0)) if judge_ok else None
++    # 鍒ゅ畾绾垮彧鍦ㄦ牱鏈**涓旇捣鐐瑰凡纭**鐨勬椂鍊欐墠鏈夋剰涔夛紱鍚﹀垯 None锛岄〉闈㈡樉绀恒€屸€斻€?+    b = int(np.ceil(BASE_F * m0)) if judge_allowed else None
++    h = int(np.ceil(EXT_F * m0)) if judge_allowed else None
+ 
+     # ---- 褰撳墠杩欐妸鍒€鐨?HI 搴忓垪
+     rows = c.execute(
+@@ -656,12 +803,15 @@ def compute_view():
+             hi_now = float(np.median(hi_all[-W:]))
+ 
+     # ---- 寤堕暱鍒ゆ柇锛氳法杩?base 鏃惰瘎浼颁竴娆★紝閿佸瓨锛屼箣鍚庝笉鍐嶆敼
+-    gkey = "grant_%d_%d" % (prog, base_allnum)
++    # 閿噷**涓嶅甫 prog**锛氭崲绋嬪簭涓嶇瓑浜庢崲鍒€锛岄攣瀛樼姸鎬佸繀椤昏窡鐫€杩欐妸鍒€璧帮紙鍘?660 琛屽甫 prog锛?+    # 鎹㈢▼搴忓悗浼氳涓嶅埌鏃ч敭銆侀噸鏂拌瘎浼颁竴娆★紝灞?R03 缂洪櫡 D3锛?+    gkey = "grant_b%d" % base_allnum
+     granted = None
+-    if not judge_ok:
+-        # 鏍锋湰涓嶈冻锛氫笉鍋氬欢闀垮垽鏂紝涔熶笉鍐?kv銆?+    if not judge_allowed:
++        # 鏍锋湰涓嶈冻 **鎴?* 璧风偣鏈‘璁わ細涓嶅仛寤堕暱鍒ゆ柇锛屼篃涓嶅啓 kv銆?         # 鍐?kv 浼氳閿佸瓨鐘舵€佷竴鐩寸暀鐫€锛岀瓑浠ュ悗鏍锋湰澶熶簡杩樻部鐢ㄥ綋鏃堕偅涓病渚濇嵁鐨勫垽鏂€?-        limit, limit_txt = None, "鏈爣瀹氾紝涓嶇粰鎹㈠垁鐐?
++        limit, limit_txt = None, ("鏈爣瀹氾紝涓嶇粰鎹㈠垁鐐? if not judge_ok else "璧风偣鏈‘璁わ紝鍙姤浠舵暟")
++
+     else:
+         gv = kv_get(gkey)
+         if gv is not None:
+@@ -678,8 +828,8 @@ def compute_view():
+             limit, limit_txt = b, "淇″彿鏈‘璁わ紝鎸夊熀鍑嗗鏍?
+ 
+     # ---- 鍥涙。鐘舵€侊紙鍒ゅ畾鍙湅 M0锛屼笉鐪?P85锛?-    # 鏍锋湰涓嶈冻鏃堕檷鍒?cnt锛堜欢鏁版彁绀猴級锛屼笉缁欎换浣?璇ヤ笉璇ユ崲"鐨勫垽鏂?-    if not judge_ok:
++    # 鏍锋湰涓嶈冻 / 璧风偣鏈‘璁ゆ椂闄嶅埌 cnt锛堜欢鏁版彁绀猴級锛屼笉缁欎换浣?璇ヤ笉璇ユ崲"鐨勫垽鏂?+    if not judge_allowed:
+         st = "cnt"
+     elif used >= m0:
+         st = "bad"
+@@ -701,14 +851,15 @@ def compute_view():
+     return {
+         "ok": True,
+         "prog": prog,
+-        # 鍒嗙粍鍙ｅ緞锛歱art = 鎸夊搧鐣紙榛樿锛屽悓涓€鎶婂垁璺ㄥ搧鐣椂浠舵暟涓庡巻鍙查兘鍚堝苟锛?-        #           prog = 鎸夌▼搴忥紙鏃ц涓猴紝GROUP_MODE=prog 鏃堕€€鍖栦负杩欎釜锛?+        # 鍒嗙粍鍙ｅ緞锛歱rog = 鎸変富绋嬪簭锛堥粯璁わ紝D-04锛?+        #           part = 鎸?鍝佺暘"鍚堝苟锛堝凡寮冪敤锛屼粎 GROUP_MODE=part 鏃跺嚭鐜帮級
+         "group": {
+             "mode": GROUP_MODE,
+             "part": part,
+             "progs": progs,
+-            "label": ("鍝佺暘 C5G25-" + part) if (GROUP_MODE == "part" and part)
+-                     else ("绋嬪簭 " + str(prog)),
++            "label": ("鍝佺暘 C5G25-" + part + "锛堝凡寮冪敤鍙ｅ緞锛?)
++                     if (GROUP_MODE == "part" and part)
++                     else ("涓荤▼搴?" + str(prog)),
+         },
+         "no_hist": no_hist,
+         "allnum": max_allnum,
+@@ -717,13 +868,30 @@ def compute_view():
+         #   event = 鏈変汉鐐硅繃"鎹㈡柊鍒€"锛屼欢鏁扮簿纭?         #   cold  = 鍐峰惎鍔紝浠舵暟鍙兘褰?鑷冲皯杩欎箞澶氫欢"锛堜笂闄愶級锛岄〉闈㈡樉绀?鈮
+         "base_src": "event" if last_new else "cold",
++        # ---- R03 鐨勪簲涓爣璇嗭紝蹇呴』鍒嗗紑鍛藉悕锛堝鏍?P0-MOD-03锛?+        "phys_life_id": phys_life_id,          # 鐗╃悊鍒冨彛锛屾崲绋嬪簭涓嶅彉
++        "segment_id": "p%d" % prog,            # 褰撳墠绋嬪簭娈碉紙PartSegmentId/ProgramSegmentId 鍚屾簮锛?+        "base_segment_id": "p%d" % (exposure[0]["prog"] if exposure else prog),
++        "tool_invocation_index": n_segments,   # 浠庤捣鐐瑰埌鐜板湪璺ㄨ繃鍑犱釜杩炵画绋嬪簭娈碉紙RunCount锛?+        "exposure_by_segment": exposure,       # 鍚勬浠舵暟锛屽悎璁?= used
+         "used": used,
+         "m0": r1(m0), "p85": r1(p85),
+         "hmin": r1(hmin), "hmax": r1(hmax),
+         "n_hist": n_real,              # 鐪熷疄鍘嗗彶鏉℃暟锛? = 娌℃爣瀹氾級
+         "n_real": n_real,
+         "n_invalid": n_invalid,
+-        "judge_ok": judge_ok,
++        "judge_ok": judge_ok,                  # 鏍锋湰澶熶笉澶燂紙缁熻灞傞潰锛?+        "judge_allowed": judge_allowed,        # 鏈夋病鏈夎祫鏍肩粰鎹㈠垁鍒ゅ畾锛堣繕瑕佽捣鐐瑰凡纭锛?+        "start_confirmed": start_confirmed,    # 杩欐妸鍒€鐨勮捣鐐规槸涓嶆槸浜哄伐纭杩囩殑鏂板垁
++        "code_sha": CODE_SHA,                  # 杩愯涓繖浠?server.py 鐨?SHA256 鍓?12 浣嶏紙R09锛?+        # R06 P0-a锛氭暟鎹埌杈惧欢杩燂紙涓婄晫鍙ｅ緞锛?+        "lag": lag_stats(),
++        # D-05锛氶粯璁ゅ弬鑰冪嚎锛堝彧浣滃弬鑰冿紝涓嶆槸璁稿彲锛?+        "reference_rule": REFERENCE_RULE,      # COUNT_H锛堥粯璁わ級/ TWO_STAGE锛堝疄楠屽鐓э級
++        "ref_limit_90": h,                     # 涓€寰?0.9路M0
++        "ref_limit_40": b,                     # 涓€寰?0.4路M0
++        "policy_mode": POLICY_MODE,            # MONITOR_ONLY / EXPERIMENTAL_POLICY
++        "safety_permit": SAFETY_PERMIT,        # 鎭?False锛氭湰鐗堟湰涓嶅嚭鍏蜂换浣曞畨鍏ㄨ鍙?         "min_n_basic": MIN_N_BASIC,
+         "min_n_p85": MIN_N_P85,
+         "exp_m0": EXP_M0,              # 鏃犲巻鍙叉椂鐨勭粡楠屾彁绀虹嚎锛堜笉鏄垽瀹氫緷鎹級

@@ -1,0 +1,33 @@
+﻿diff --git "a/20261027/02_\346\272\220\344\273\243\347\240\201\344\270\216\351\205\215\347\275\256/source/influx_source.py" "b/20261027/02_\346\272\220\344\273\243\347\240\201\344\270\216\351\205\215\347\275\256/source/influx_source.py"
+index c2f5cb1..8ab4818 100644
+--- "a/20261027/02_\346\272\220\344\273\243\347\240\201\344\270\216\351\205\215\347\275\256/source/influx_source.py"
++++ "b/20261027/02_\346\272\220\344\273\243\347\240\201\344\270\216\351\205\215\347\275\256/source/influx_source.py"
+@@ -47,13 +47,12 @@ import urllib.request
+ from datetime import datetime, timedelta, timezone
+ 
+ # ---------------------------------------------------------------- 杩炴帴閰嶇疆
+-INFLUX_URL = os.environ.get("INFLUX_URL", "http://10.196.32.63:8086")
+-INFLUX_ORG = os.environ.get("INFLUX_ORG", "s")
+-INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "iotdata")
++INFLUX_URL = os.environ.get("INFLUX_URL", "")
++INFLUX_ORG = os.environ.get("INFLUX_ORG", "")
++INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "")
+ # token 浼樺厛鍙栫幆澧冨彉閲忥紱杩欓噷鐨勯粯璁ゅ€煎彧涓烘湰鏈鸿皟璇曪紝涓嶈鎻愪氦鍒扮増鏈簱
+ INFLUX_TOKEN = os.environ.get(
+-    "INFLUX_TOKEN",
+-    "tOpdgdFM2DBCY6-ZWZUn1s5bigxwmcrNGRNdNvHy79BSJq_yF9gFxHykKyUWRTWhCOu02SmJQmKEeaurU77hPw==",
++    
+ )
+ 
+ DEVICE = os.environ.get("INFLUX_DEVICE", "4152")   # 鍙彇杩欏彴璁惧
+@@ -246,6 +245,13 @@ class InfluxPuller(threading.Thread):
+                 # 杩欎釜绋嬪簭鍥哄畾 F100锛屾寜宸ヨ壓鍊煎～锛屼笉鍙備笌璁＄畻
+                 "feedrate": 100.0,
+             })
++        # 猸?recv_ts锛?*杩欎竴鎵硅鎴戜滑鎷垮埌鐨勬椂鍒?*锛圧06 P0-a锛?026-10-29锛?+        #   鍚屼竴鎵瑰叡鐢ㄤ竴涓€硷紝鎵€浠?lag = recv_ts 鈭?ts 鏄?*涓婄晫**
++        #   锛堝惈鏈嶅姟绔煡璇?+ 缃戠粶浼犺緭 + 鏈湴瑙ｆ瀽锛夈€傝鎷垮埌鐐瑰€煎繀椤诲湪閲囬泦鐩掍晶鎵撶偣銆?+        #   浠ュ墠瀹屽叏娌℃湁杩欎釜瀛楁 鈫?"鏁版嵁鍒拌揪寤惰繜"鍙兘"鏈煡"锛? 绉掔洰鏍囨棤娉曡瘎浼般€?+        recv = iso(datetime.now(timezone.utc))
++        for r in out:
++            r["recv_ts"] = recv
+         out.sort(key=lambda r: r["ts"])
+         return out
+ 

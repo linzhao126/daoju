@@ -1,0 +1,10 @@
+﻿输入,段,说明,存在,位置,干净clone可复现,字节,SHA256_12
+22_c48-c60_xalign/labeled_T1111_new.csv,C,xalign 新批 labeled,YES,仓库内,YES,14800821,e477d5b8d1b6
+24_程序归属修正/HI_merged_28.csv,A,xalign_HI（A 段核心输入）,YES,仓库内,YES,319624,d54ead9ade9d
+34_P0-01收尾/P01_evidence_all60.csv,A,逐把证据台账对齐表,YES,仓库内,YES,9427,80a3f466bca5
+03_原始数据与标签/life_audit_4152.csv,A,逐刃口 as_of 真值审计,YES,仓库内,YES,11949,a71115ca851d
+03_原始数据与标签/tool_db_snapshot/tool.db.readonly_copy,A,只读库快照（N06 影子用）,YES,仓库内,YES,2420736,3fd701389c45
+附件_证据/52_R02_延长分支审计/r02_grant_audit.csv,A,R02 放行审计（N04 用）,YES,仓库内,YES,1936,96ea1edf6b3c
+influxdb_4152_FanucNormalData_20261012_104944_L_T1111_T1111_life_labeled.csv,A*,仓库根旧 labeled（ROOT，非仓库内）,YES,仓库外(本地ROOT),NO—需自备,177788287,45236b83216d
+influxdb_4152_FanucNormalData_20261027_200034.csv,B,3.3 GB 未过滤原始（缺）,YES,仓库外(本地ROOT),NO—需自备,3328068594,62df234d08ae
+三厂4152换刀时间.xlsx,ext,换刀台账（商业敏感，需单独复核公开性 P1-04）,MISSING,—,NO—缺文件,,

@@ -1,0 +1,45 @@
+====================================================================================
+Test-H　数据到达延迟 recv_ts
+====================================================================================
+
+[T1] DDL 是否含 recv_ts（两处）
+  PASS  T1.1 常量 RAW_ROWS_DDL 含 recv_ts TEXT                        
+  PASS  T1.2 init_db 的 CREATE TABLE 含 recv_ts TEXT                 出现 3 次
+
+[T2] 老库迁移
+  PASS  T2.1 有 ALTER TABLE raw_rows ADD COLUMN recv_ts TEXT        
+  PASS  T2.2 迁移带存在性判断（幂等）                                          
+  PASS  T2.3 recv_ts 迁移在 z_pos 之后（重建迁移之后）                          z_pos@11745 < recv_ts@12255
+
+[T3] write_rows 是否落 recv_ts
+  PASS  T3.1 INSERT 列清单含 recv_ts                                   
+  PASS  T3.2 取值用 r.get("recv_ts")（模拟器无此字段不炸）                       
+  PASS  T3.3 VALUES 占位符与列数一致（9 个 ?）                                
+
+[T4] influx_source 是否给整批打同一个戳
+  PASS  T4.1 to_rows 内有 recv = iso(datetime.now(timezone.utc))     
+  PASS  T4.2 每行都赋 r["recv_ts"] = recv                              
+  PASS  T4.3 打戳在 return 之前、排序之前                                    
+
+[T5] batch_recv_lag_stats 与 API 字段
+  PASS  T5.1 存在 def batch_recv_lag_stats(                          
+  PASS  T5.1b 旧名 lag_stats 已从函数定义消失                                
+  PASS  T5.2 只取 recv_ts 非 NULL                                     
+  PASS  T5.3 返回 median/p95/max/min                                 
+  PASS  T5.4 /api/state 返回 "lag"                                   
+  PASS  T5.5 口径说明里写明"上界"                                           
+  PASS  T5.6 盲区计数 n_no_recvts 存在（recv_ts IS NULL 老行）               
+
+[T6] 统计口径复刻（负值/超1天/NULL）
+  PASS  T6.1 n=4（NULL 与异常值都被排除）                                    {'n': 4, 'neg': 1, 'stale': 1, 'median': 7.0, 'p95': 20.0, 'max': 20.0, 'min': 3.0}
+  PASS  T6.2 neg=1                                                 1
+  PASS  T6.3 stale=1                                               1
+  PASS  T6.4 median=7.0（3,5,9,20 的中位）                              7.0
+  PASS  T6.5 max=20.0 / min=3.0                                    max=20.0 min=3.0
+  PASS  T6.6 全 NULL 时 n=0 且不抛异常                                    {'n': 0, 'neg': 0, 'stale': 0}
+
+====================================================================================
+汇总：24 / 24 PASS
+====================================================================================
+
+[exit=0]

@@ -1,0 +1,17 @@
+[行为层] run_segments 切段语义
+  PASS  I1 空序列 → 0 段                                               n=0
+  PASS  I2 02→03→02 → 3 段                                          segs=[(1, 2, 2), (2, 3, 2), (3, 2, 1)]
+  PASS  I3 各段件数合计 = 总件数                                            
+  PASS  I4 同程序90件 → 1 段（段数≠调用次数）                                   n=1
+  PASS  I5 17→14→17 → 3 段                                          ids=['s1_p17', 's2_p14', 's3_p17']
+  PASS  I6 segment_seq_id 唯一（旧 p+prog 不唯一）                         首=s1_p17 末=s3_p17
+[源码层] server.py 五键契约
+  PASS  I7 tool_invocation_index = "UNKNOWN"                       
+  PASS  I8 program_run_segment_count = n_segments                  
+  PASS  I9 current_program / segment_seq_id 键存在                    
+  PASS  I10 旧冒名写法已消失                                               
+  PASS  I11 使用点已改为调 run_segments（逻辑单一来源）                           
+
+[test_i] PASS=11 FAIL=0
+
+[exit=0]

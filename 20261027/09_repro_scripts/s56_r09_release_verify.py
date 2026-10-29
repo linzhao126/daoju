@@ -128,11 +128,14 @@ def part_b():
         res['code_sha'] = d.get('code_sha')
         res['policy_mode'] = d.get('policy_mode')
         res['safety_permit'] = d.get('safety_permit')
+        res['state'] = d.get('state')                     # N06 影子安全：状态字段枚举校验
+        res['granted'] = d.get('granted')                 # N06：非 judge_allowed 时应为 None（不写 kv）
         res['judge_allowed'] = d.get('judge_allowed')
         res['base_src'] = d.get('base_src')
         res['used'] = d.get('used')
         res['exposure'] = d.get('exposure_by_segment')
-        res['n_seg'] = d.get('tool_invocation_index')
+        res['n_seg'] = d.get('program_run_segment_count')   # P0-02 后改名；旧键 tool_invocation_index 已固定为 UNKNOWN
+        res['invocation'] = d.get('tool_invocation_index')  # 应为 'UNKNOWN'，不再是段数
         res['phys'] = d.get('phys_life_id')
         res['reference_rule'] = d.get('reference_rule')
         res['ref_limit_90'] = d.get('ref_limit_90')

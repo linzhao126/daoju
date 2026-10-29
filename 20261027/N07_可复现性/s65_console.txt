@@ -1,0 +1,39 @@
+输入清单 → C:\abc\workBoddyHome刀具\daoju_repo\20261027\N07_可复现性\N07_输入清单_SHA.csv
+  [YES] 22_c48-c60_xalign/labeled_T1111_new.csv                      仓库内 YES
+  [YES] 24_程序归属修正/HI_merged_28.csv                                   仓库内 YES
+  [YES] 34_P0-01收尾/P01_evidence_all60.csv                            仓库内 YES
+  [YES] 03_原始数据与标签/life_audit_4152.csv                               仓库内 YES
+  [YES] 03_原始数据与标签/tool_db_snapshot/tool.db.readonly_copy            仓库内 YES
+  [YES] 附件_证据/52_R02_延长分支审计/r02_grant_audit.csv                      仓库内 YES
+  [YES] influxdb_4152_FanucNormalData_20261012_104944_L_T1111_T111   仓库外(本地ROOT) NO—需自备
+  [YES] influxdb_4152_FanucNormalData_20261027_200034.csv            仓库外(本地ROOT) NO—需自备
+  [MISSING] 三厂4152换刀时间.xlsx                                              — NO—缺文件
+
+依赖 pin（requirements.txt=requirements.txt）：
+    numpy==2.5.2
+    pandas==3.0.5
+    scikit-learn==1.9.0
+    xgboost==3.4.0
+    joblib==1.5.3
+    matplotlib==3.11.1
+    openpyxl==3.1.5
+    pypdf==6.16.0
+    reportlab==5.0.0
+    scipy==1.18.0
+    contourpy==1.3.3
+    cycler==0.12.1
+    fonttools==4.63.0
+    kiwisolver==1.5.1
+    pillow==12.3.0
+    packaging==26.3
+    pyparsing==3.3.2
+    python-dateutil==2.9.0.post0
+    six==1.17.0
+    threadpoolctl==3.6.0
+    tzdata==2026.3
+    charset-normalizer==3.5.0
+    et_xmlfile==2.0.0
+    narwhals==2.24.0
+DONE → C:\abc\workBoddyHome刀具\daoju_repo\20261027\N07_可复现性
+
+[exit=0]

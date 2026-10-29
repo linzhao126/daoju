@@ -1,0 +1,41 @@
+====================================================================================
+N06　隔离影子安全回归（不影响生产 / 不出许可 / 不停机）
+====================================================================================
+
+[捕获字段]（来自运行中的隔离服务，非磁盘静态）
+    status         = 200
+    policy_mode    = 'MONITOR_ONLY'
+    safety_permit  = False
+    state          = 'cnt'
+    judge_allowed  = False
+    granted        = None
+    base_src       = 'cold'
+    used           = 100
+    invocation     = 'UNKNOWN'
+    n_seg          = 2
+    code_sha       = '8201d3779c21'
+
+[安全不变量]
+  PASS  INV-1 HTTP /api/state 200                            
+  PASS  INV-2 safety_permit 恒 False（不出任何安全许可）                
+  PASS  INV-3 policy_mode ∈ {MONITOR_ONLY, EXPERIMENTAL_POLICY} MONITOR_ONLY
+  PASS  INV-4 state ∈ {ok,chk,sug,bad,cnt}（无停机/报警态）          cnt
+  PASS  INV-5 起点未确认(judge_allowed=False)→state=cnt 且 granted=None（不锁存/不写kv） judge_allowed=False state=cnt granted=None
+  PASS  INV-6 tool_invocation_index=UNKNOWN（不冒充调用次数，P0-02）   UNKNOWN
+  PASS  INV-7 快照库 SHA 前后一致（探针不写库）                            before=3fd701389c45 after=3fd701389c45
+
+[静态核证 server.py]
+  PASS  S-1 无任何 FOCAS 写接口(cnc_wr*/cnc_sysexecmd/wrparam)     
+  PASS  S-2 SAFETY_PERMIT 写死 False（非环境变量可改）                  
+  PASS  S-3 POLICY_MODE 非法值兜底回 MONITOR_ONLY                  
+  PASS  S-4 非 judge_allowed 不写 grant kv                      
+
+[静态核证 index.html（车间误认风险，P1-02）]
+  PASS  U-1 MONITOR_ONLY 时显示"影子观测"                           
+  PASS  U-2 起点未确认时显示"不做换刀判定"                                 
+  PASS  U-3 前端无"自动停机/立即停机"类指令措辞                              
+  [登记] 前端 state=sug 仍显示"建议换刀"字样（True）——祈使式措辞，
+        虽有 MONITOR_ONLY"影子观测"横幅兜底，是否需弱化为"参考线到达"属对外口径，交 0 号位/工艺裁决。
+
+====================================================================================
+汇总：PASS=14 FAIL=0

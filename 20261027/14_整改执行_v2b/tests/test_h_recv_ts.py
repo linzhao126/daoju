@@ -15,7 +15,7 @@ T1  DDL 两处都含 `recv_ts TEXT`（常量 + init_db）
 T2  老库迁移：`ALTER TABLE raw_rows ADD COLUMN recv_ts TEXT`，且放在 z_pos 迁移之后
 T3  `write_rows` 的 INSERT 列表含 recv_ts，且取 `r.get("recv_ts")`（模拟器无此字段不报错）
 T4  `influx_source.to_rows` 给整批打同一个戳（同一批共用一个值 → lag 是上界）
-T5  `lag_stats` 存在、暴露到 `/api/state` 的 `lag` 字段
+T5  `batch_recv_lag_stats` 存在（原 `lag_stats`，审核 P0-06 改名）、暴露到 `/api/state` 的 `lag` 字段、含盲区计数 `n_no_recvts`
 T6  统计口径复刻验证：负值丢弃、>1 天丢弃、NULL 跳过；median/p95 与手算一致
 
 判据：任一 FAIL → exit 1。
@@ -43,7 +43,7 @@ def ck(name, cond, detail=''):
 
 
 def lag_replica(pairs, limit_day=True):
-    """复刻 lag_stats 的过滤与统计（含负值与 >1 天丢弃）"""
+    """复刻 batch_recv_lag_stats 的过滤与统计（含负值与 >1 天丢弃）"""
     vals, neg, stale = [], 0, 0
     for ts, recv in pairs:
         if recv is None:
@@ -110,14 +110,17 @@ def main():
        inf.find('recv = iso(') < inf.find('out.sort(key=lambda r: r["ts"])'))
 
     # ---- T5 统计与暴露
-    print('\n[T5] lag_stats 与 API 字段')
-    ck('T5.1 存在 def lag_stats(', 'def lag_stats(' in srv)
+    print('\n[T5] batch_recv_lag_stats 与 API 字段')
+    ck('T5.1 存在 def batch_recv_lag_stats(', 'def batch_recv_lag_stats(' in srv)
+    ck('T5.1b 旧名 lag_stats 已从函数定义消失', 'def lag_stats(' not in srv)
     ck('T5.2 只取 recv_ts 非 NULL',
        bool(re.search(r'WHERE recv_ts IS NOT NULL', srv)))
     ck('T5.3 返回 median/p95/max/min',
        all(k in srv for k in ('"median_sec"', '"p95_sec"', '"max_sec"', '"min_sec"')))
-    ck('T5.4 /api/state 返回 "lag"', bool(re.search(r'"lag":\s*lag_stats\(\)', srv)))
+    ck('T5.4 /api/state 返回 "lag"', bool(re.search(r'"lag":\s*batch_recv_lag_stats\(\)', srv)))
     ck('T5.5 口径说明里写明"上界"', '上界' in srv)
+    ck('T5.6 盲区计数 n_no_recvts 存在（recv_ts IS NULL 老行）',
+       'n_no_recvts' in srv and bool(re.search(r'WHERE recv_ts IS NULL', srv)))
 
     # ---- T6 复刻验证
     print('\n[T6] 统计口径复刻（负值/超1天/NULL）')

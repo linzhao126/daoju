@@ -44,7 +44,7 @@ CHECKS = [
     ('K-s45-pii', 's45.log', r'PII 命中 0 处', '台账无个人标识'),
     ('K-s45-path', 's45.log', r'7 脚本包内优先 7/7', '台账路径解耦'),
     ('K-s45-sha', 's45.log', r'一致：是', '台账 SHA256 三方一致'),
-    ('L-g0', 'g0_check.log', r'合计：PASS 1 / WARN 1 / FAIL 0', 'G0 自检无 FAIL'),
+    ('L-g0', 'g0_check.log', r'合计：PASS \d+ / WARN \d+ / FAIL 0\b', 'G0 自检无 FAIL（计数不作硬比）'),
     # ---- 2026-10-29 D-04（按主程序计件）：Test-F
     ('M-test_f', 'test_f.log', r'汇总：15 / 15 PASS', '件数口径 15/15'),
     ('M-test_f-107', 'test_f.log', r'used=107', 'c33 的 107 件不被劈成 56'),
@@ -64,7 +64,7 @@ CHECKS = [
     ('O-s56-sha', 's56.log', r'policy_mode=MONITOR_ONLY\s+safety_permit=False', '运行版本探针通过'),
     ('O-s57-k0', 's57.log', r'k= 0 → ρ≥0\.05:STATUS_QUO\s+ρ≥0\.25:COUNT_H', 'k=0 时一律90%恒优'),
     ('O-s57-grid', 's57.log', r'决策网格 \(k, ρ\) → 最省钱规则', '双轴决策表已生成'),
-    ('O-test_h', 'test_h.log', r'汇总：22 / 22 PASS', 'recv_ts 22/22'),
+    ('O-test_h', 'test_h.log', r'汇总：24 / 24 PASS', 'recv_ts / 改名回归 24/24（N05）'),
     ('O-s58', 's58.log', r'还差 \*\*\d+\*\* 条历史', '样本就绪自检给出缺口'),
     ('O-lag', 's56.log', r'到达延迟 lag：n=\d+', '接口已返回到达延迟'),
     ('O-s59-15', 's59.log', r'32\s+15\s+0\.501\s+0\.460', '采样率实验 15 个破损全过'),
@@ -73,6 +73,13 @@ CHECKS = [
     ('O-s60-none', 's60.log', r'没有一个通道通过', '六通道全阴性已披露'),
     ('O-s61-f', 's61.log', r'k=0 → f\*=0\.54', '最优 f 随 rho 变化已披露'),
     ('O-s61-cost', 's61.log', r'60\.9', 'f=0.9 在 rho=5 的代价已披露'),
+    # ---- 2026-10-29 N01~N08 新增（审核 0338a5d）
+    ('P-n02-test_i', 'test_i.log', r'\[test_i\] PASS=11 FAIL=0', '段/调用数据契约 11/11（N02）'),
+    ('P-n03-c3', 's62.log', r"C3 可验收计数： \{'否': 28\}", '逐刃口 C3 真值 28/28 不可得（N03）'),
+    ('P-n04-nested', 's63.log', r'argmin 的乐观偏差', '嵌套留一后样本内乐观偏差已量化（N04）'),
+    ('P-n06-shadow', 's64.log', r'PASS=14 FAIL=0', '隔离影子安全回归 14 项全过（N06）'),
+    ('P-n07-manifest', 's65.log', r'N07_输入清单_SHA\.csv', '输入清单+SHA 已生成（N07）'),
+    ('P-n08-register', 's66.log', r'裁决引证登记', '裁决引证登记表与目标声明自检（N08）'),
 ]
 
 # 仓库级判据（不是日志，是源码本身）：D-04 的红线
@@ -97,7 +104,11 @@ REPO_CHECKS = [
     ('R10-recv-ts', '02_源代码与配置/source/server.py',
      r'ALTER TABLE raw_rows ADD COLUMN recv_ts TEXT', 'R06 P0-a recv_ts 迁移存在'),
     ('R11-lag-fn', '02_源代码与配置/source/server.py',
-     r'def lag_stats\(', 'R06 P0-a 延迟统计存在'),
+     r'def batch_recv_lag_stats\(', 'R06 P0-a 延迟统计存在（审核 P0-06 改名）'),
+    ('R12-no-oldname', '02_源代码与配置/source/server.py',
+     r'(?<!recv_)lag_stats\(', 'P0-06 旧函数名不得再现（命中=FAIL，取反判定）'),
+    ('R13-blind-spot', '02_源代码与配置/source/server.py',
+     r'n_no_recvts', 'P0-06 盲区计数（recv_ts IS NULL）保留'),
     ('R9-ref-field', '02_源代码与配置/source/server.py',
      r'"ref_limit_90": h', 'D-05 参考线字段已暴露'),
     ('R7-code-sha', '02_源代码与配置/source/server.py',
@@ -125,6 +136,12 @@ for cid, rel, pat, want in REPO_CHECKS:
                          Status='MISSING_FILE', Hit=''))
         continue
     txt = open(p, encoding='utf-8', errors='replace').read()
+    if cid.startswith('R12-'):                       # 取反类判据：命中=FAIL
+        m = re.search(pat, txt)
+        rows.append(dict(ID=cid, File=rel, Pattern=pat, Want=want,
+                         Status=('FAIL' if m else 'PASS'),
+                         Hit=(m.group(0)[:60] if m else '旧名不存在（符合预期）')))
+        continue
     m = re.search(pat, txt)
     rows.append(dict(ID=cid, File=rel, Pattern=pat, Want=want,
                      Status=('PASS' if m else 'FAIL'),

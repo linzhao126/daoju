@@ -45,15 +45,59 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 # ---------------------------------------------------------------- 连接配置
+# ⚠ 安全约定（2026-10-29，S0 整改）：
+#   1) 本文件**永久禁止**出现可用的默认令牌/连接凭据（本仓库是公开仓库，已泄露过一次）；
+#   2) 真实值只放两处：本目录的 `.env`（已被 .gitignore 排除）或系统环境变量；
+#   3) 两者都没有时**用的时候立刻失败**（fail-closed），错误信息不含任何令牌片段。
 INFLUX_URL = os.environ.get("INFLUX_URL", "")
 INFLUX_ORG = os.environ.get("INFLUX_ORG", "")
 INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "")
-# token 优先取环境变量；这里的默认值只为本机调试，不要提交到版本库
-INFLUX_TOKEN = os.environ.get(
-    
-)
+
+
+def _load_dotenv():
+    """把同目录（或当前工作目录）的 .env 读进 os.environ。
+
+    * **已存在的环境变量优先**：.env 只做兜底，不覆盖外部显式设置；
+    * 只认 `KEY=VALUE`，忽略空行与 `#` 注释，去掉首尾引号；
+    * 读不到/读失败**不抛异常**——真正的失败点统一留给 require_token()，
+      这样"文件缺失"和"值缺失"报同一种错，排查路径唯一。
+    """
+    here = Path(__file__).resolve().parent
+    for p in (here / ".env", Path.cwd() / ".env"):
+        if not p.is_file():
+            continue
+        try:
+            for raw in p.read_text(encoding="utf-8").splitlines():
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip('"').strip("'")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+        except Exception:
+            pass
+        break
+
+
+_load_dotenv()
+
+INFLUX_TOKEN = os.environ.get("INFLUX_TOKEN", "").strip()
+
+
+def require_token():
+    """取令牌；没有就**立刻失败**，且错误信息里不含任何令牌片段。"""
+    if not INFLUX_TOKEN:
+        raise RuntimeError(
+            "缺少 INFLUX_TOKEN：请设置系统环境变量，或在 "
+            "%s 下参照 .env.example 新建 .env 写入一行 `INFLUX_TOKEN=<令牌>`。"
+            "（.env 已被 .gitignore 排除，不会提交到仓库）"
+            % Path(__file__).resolve().parent
+        )
+    return INFLUX_TOKEN
 
 DEVICE = os.environ.get("INFLUX_DEVICE", "4152")   # 只取这台设备
 TOOL_NO = os.environ.get("INFLUX_TOOL", "T1111")   # 只取这把刀（9 把刀混流，T1111 只占 0.34%）
@@ -150,7 +194,7 @@ class InfluxPuller(threading.Thread):
             "%s/api/v2/query?org=%s" % (INFLUX_URL, INFLUX_ORG),
             data=query.encode("utf-8"),
             headers={
-                "Authorization": "Token " + INFLUX_TOKEN,
+                "Authorization": "Token " + require_token(),
                 "Content-Type": "application/vnd.flux",
                 "Accept": "application/csv",
             },

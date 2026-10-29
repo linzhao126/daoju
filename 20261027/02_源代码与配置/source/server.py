@@ -159,6 +159,24 @@ if REFERENCE_RULE not in ("COUNT_H", "TWO_STAGE"):
     REFERENCE_RULE = "COUNT_H"
 
 
+def run_segments(prog_seq):
+    """把按件号顺序的 prog 序列切成**连续同程序段**（审核 P0-02 后可单独测试）。
+
+    返回 (exposure, n_segments)：exposure 逐段列 seg/prog/pieces；
+    n_segments = 相邻变化次数 + 1（空序列 = 0）。
+    ⚠ 这是**程序段计数**，不是刀具调用次数：11→20→11 计 3 段；
+       同一程序内多次调用、一件含多次切入，在这里都只能算 1 段。
+    """
+    exposure, n_segments, cur = [], 0, None
+    for pg in prog_seq:
+        if cur is None or pg != cur:
+            n_segments += 1
+            exposure.append({"seg": n_segments, "prog": pg, "pieces": 0})
+            cur = pg
+        exposure[-1]["pieces"] += 1
+    return exposure, n_segments
+
+
 def group_progs(prog):
     """返回参与"同一把刀历史"统计的程序号集合。
 
@@ -644,22 +662,27 @@ class Simulator(threading.Thread):
 SIM = Simulator()
 
 
-# ---------------------------------------------------------------- 到达延迟（R06 P0-a）
-def lag_stats(limit=2000):
-    """数据到达延迟 L2 = recv_ts − ts（秒）。
+# ---------------------------------------------------------------- 批次接收延迟（R06 P0-a；审核 P0-06 改名）
+def batch_recv_lag_stats(limit=2000):
+    """批次接收延迟 = T4'−T2' ≈ recv_ts − ts（秒），**不是 L2 物理入库时延**。
 
-    ⚠ 口径必须说清：
-      * `ts`     = 数据在机床侧产生的时刻（_time）
-      * `recv_ts`= **我们把这一批写进库**的时刻，同一批共用一个值
-      * 所以 lag 是**上界**：含 Influx 查询 + 网络 + 解析。
-        若要"采集盒→库"的点值，必须在采集盒侧打点（本轮做不到）。
-      * 只统计 recv_ts 非 NULL 的行：加列之前的老行自动跳过。
+    ⚠ 口径必须说清（审核 P0-06，2026-10-29）：
+      * `ts`      = 机床侧数据时刻（T1，采集盒打到 Influx 的 _time）
+      * `recv_ts` = **应用从 Influx 拉到后落库**的时刻（批打点，同批共用一个值），
+        它**不等于**采集盒/Influx 写入时刻（T2），故本值只界定 T1→T4' 的上界；
+      * 真正的 L2（采集盒→Influx）需要采集盒侧打点，本链路无此数据 → 盲区；
+      * 只统计 recv_ts 非 NULL 的行；加列前的老行计入 n_no_recvts 盲区数；
       * 负值（时钟不同步）丢弃并计数；>1 天的丢弃（停机跨天不算延迟）。
 
-    为什么要它：`06-00` 里 L2 是"未知"，而它是"1 秒能不能做到"的第一决定项。
-    有了这组数，"当前链路 135 秒"就从断言变成可复算。
+    为什么要改名：旧名 `lag_stats` 容易被读成"端到端物理延迟"；
+    而"现链路 135 秒"是 15s 轮询周期 + 120s 封口超时的**等待预算近似**，
+    不是从物理崩刃时刻 T0 起算的实测下限（T0/T5 在本链路不可测，见
+    N05_时间戳链路定义 文档）。本函数只回答 T1→T4' 一段。
     """
     try:
+        cur = db().execute(
+            "SELECT COUNT(*) FROM raw_rows WHERE recv_ts IS NULL")
+        n_no_recvts = int(cur.fetchone()[0])
         rows = db().execute(
             "SELECT ts, recv_ts FROM raw_rows WHERE recv_ts IS NOT NULL "
             "ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
@@ -690,7 +713,8 @@ def lag_stats(limit=2000):
         "min_sec": round(float(v.min()), 3),
         "neg": neg,           # 时钟不同步的条数（应为 0）
         "stale": stale,       # 超过 1 天的（停机跨天，不算延迟）
-        "note": "recv_ts 是批量写入时刻 → 该值是上界（含查询+传输+解析）",
+        "n_no_recvts": n_no_recvts,   # 盲区：加列前无 recv_ts 的老行（P0-06 要求保留计数）
+        "note": "recv_ts 是批量写入时刻 → 该值是 T1→T4' 的上界，不是 L2 物理入库时延",
     }
 
 
@@ -742,15 +766,11 @@ def compute_view():
     # 这就是 "ExposureBySegment"：**刀龄跨全部程序累计，只是把它摊开能看到**。
     # 程序段数（RunCount）用"相邻 prog 变化次数 + 1"算，不能用 distinct prog 数——
     # 11→20→11 是两个程序段还是一次调用，必须按**连续段**计。
+    # ⚠ 审核 P0-02（2026-10-29）：连续程序段数 ≠ 刀具调用次数。同一程序内同一刀位
+    #   可能多次调用，现有数据拿不到真实 ToolInvocationIndex，只能给 UNKNOWN。
     seg_seq = [r[0] for r in c.execute(
         "SELECT prog FROM pieces WHERE allnum>? ORDER BY allnum", (base_allnum,)).fetchall()]
-    exposure, n_segments, cur = [], 0, None
-    for pg in seg_seq:
-        if cur is None or pg != cur:
-            n_segments += 1
-            exposure.append({"seg": n_segments, "prog": pg, "pieces": 0})
-            cur = pg
-        exposure[-1]["pieces"] += 1
+    exposure, n_segments = run_segments(seg_seq)   # 切段逻辑已提纯（run_segments），由 test_h 直接验证
     # 物理刃口 ID：本库只存一把刀（pieces 无刀号列），所以 ID 由"起点件号"唯一确定。
     # 不随程序切换而变 —— 这是 R03 要求的"PhysicalToolLifeId 不随品番切换"。
     phys_life_id = "phys_%s_%d" % (TOOL_NO, base_allnum)
@@ -868,11 +888,14 @@ def compute_view():
         #   event = 有人点过"换新刀"，件数精确
         #   cold  = 冷启动，件数只能当"至少这么多件"（上限），页面显示 ≥N
         "base_src": "event" if last_new else "cold",
-        # ---- R03 的五个标识，必须分开命名（审核 P0-MOD-03）
+        # ---- R03 的五个标识（分开命名，审核 P0-MOD-03）+ 审核 P0-02 语义整改（2026-10-29）：
+        #      段计数不再冒充调用次数；segment_id 不唯一时另有 seq 编号。
         "phys_life_id": phys_life_id,          # 物理刃口，换程序不变
-        "segment_id": "p%d" % prog,            # 当前程序段（PartSegmentId/ProgramSegmentId 同源）
+        "current_program": "p%d" % prog,       # 当前主程序号（原 segment_id 的如实含义）
+        "segment_seq_id": "s%d_p%d" % (n_segments, prog),  # 第 n 次进入的程序段：同一程序第 2 次进入也能唯一标识
         "base_segment_id": "p%d" % (exposure[0]["prog"] if exposure else prog),
-        "tool_invocation_index": n_segments,   # 从起点到现在跨过几个连续程序段（RunCount）
+        "program_run_segment_count": n_segments,  # 从起点到现在跨过几个连续程序段（RunCount）
+        "tool_invocation_index": "UNKNOWN",    # 真实刀具调用次数：需可追溯 FOCAS 调用事件，现无数据源（P0-02）
         "exposure_by_segment": exposure,       # 各段件数，合计 = used
         "used": used,
         "m0": r1(m0), "p85": r1(p85),
@@ -885,7 +908,7 @@ def compute_view():
         "start_confirmed": start_confirmed,    # 这把刀的起点是不是人工确认过的新刀
         "code_sha": CODE_SHA,                  # 运行中这份 server.py 的 SHA256 前 12 位（R09）
         # R06 P0-a：数据到达延迟（上界口径）
-        "lag": lag_stats(),
+        "lag": batch_recv_lag_stats(),   # P0-06：批次接收上界，非端到端物理延迟
         # D-05：默认参考线（只作参考，不是许可）
         "reference_rule": REFERENCE_RULE,      # COUNT_H（默认）/ TWO_STAGE（实验对照）
         "ref_limit_90": h,                     # 一律 0.9·M0
