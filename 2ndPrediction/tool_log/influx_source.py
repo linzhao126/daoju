@@ -47,13 +47,50 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 
 # ---------------------------------------------------------------- 连接配置
+# ⚠ 安全约定（2026-10-29，S0 整改）：真实凭据只放本目录 .env（已被 .gitignore 排除）
+#   或系统环境变量；两者都没有时用到即 fail-closed，错误信息不含令牌片段。
+#   注意：连接配置必须在 _load_dotenv() 之后读取，否则 .env 里的 URL/ORG/BUCKET 读不到。
+
+
+def _load_dotenv():
+    """把同目录（或当前工作目录）的 .env 读进 os.environ；已有环境变量优先，读不到不抛异常。"""
+    here = os.path.dirname(os.path.abspath(__file__))
+    for p in (os.path.join(here, ".env"), os.path.join(os.getcwd(), ".env")):
+        if not os.path.isfile(p):
+            continue
+        try:
+            # utf-8-sig 去掉 BOM；errors="replace" 让现场存成 GBK 的 .env 也能解析出 ASCII 的 KEY=VALUE。
+            with open(p, encoding="utf-8-sig", errors="replace") as fh:
+                for raw in fh.read().splitlines():
+                    line = raw.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip().strip('"').strip("'")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+        except Exception:
+            pass
+        break
+
+
+_load_dotenv()
+
 INFLUX_URL = os.environ.get("INFLUX_URL", "")
 INFLUX_ORG = os.environ.get("INFLUX_ORG", "")
 INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "")
-# token 优先取环境变量；这里的默认值只为本机调试，不要提交到版本库
-INFLUX_TOKEN = os.environ.get(
-    
-)
+INFLUX_TOKEN = os.environ.get("INFLUX_TOKEN", "").strip()
+
+
+def require_token():
+    """取令牌；没有就立刻失败，错误信息不含任何令牌片段。"""
+    if not INFLUX_TOKEN:
+        raise RuntimeError(
+            "缺少 INFLUX_TOKEN：请设置系统环境变量，或在 %s 下参照 .env.example 新建 .env "
+            "写入一行 `INFLUX_TOKEN=<令牌>`。（.env 已被 .gitignore 排除，不会提交到仓库）"
+            % os.path.dirname(os.path.abspath(__file__))
+        )
+    return INFLUX_TOKEN
 
 DEVICE = os.environ.get("INFLUX_DEVICE", "4152")   # 只取这台设备
 TOOL_NO = os.environ.get("INFLUX_TOOL", "T1111")   # 只取这把刀（9 把刀混流，T1111 只占 0.34%）
@@ -150,7 +187,7 @@ class InfluxPuller(threading.Thread):
             "%s/api/v2/query?org=%s" % (INFLUX_URL, INFLUX_ORG),
             data=query.encode("utf-8"),
             headers={
-                "Authorization": "Token " + INFLUX_TOKEN,
+                "Authorization": "Token " + require_token(),
                 "Content-Type": "application/vnd.flux",
                 "Accept": "application/csv",
             },

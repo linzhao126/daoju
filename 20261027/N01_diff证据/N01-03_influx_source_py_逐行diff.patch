@@ -6,16 +6,16 @@ index c2f5cb1..8ab4818 100644
  from datetime import datetime, timedelta, timezone
  
  # ---------------------------------------------------------------- 杩炴帴閰嶇疆
--INFLUX_URL = os.environ.get("INFLUX_URL", "http://10.196.32.63:8086")
--INFLUX_ORG = os.environ.get("INFLUX_ORG", "s")
--INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "iotdata")
+-INFLUX_URL = os.environ.get("INFLUX_URL", "http://<influxdb主机>:8086")
+-INFLUX_ORG = os.environ.get("INFLUX_ORG", "<组织名>")
+-INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "<桶名>")
 +INFLUX_URL = os.environ.get("INFLUX_URL", "")
 +INFLUX_ORG = os.environ.get("INFLUX_ORG", "")
 +INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "")
  # token 浼樺厛鍙栫幆澧冨彉閲忥紱杩欓噷鐨勯粯璁ゅ€煎彧涓烘湰鏈鸿皟璇曪紝涓嶈鎻愪氦鍒扮増鏈簱
  INFLUX_TOKEN = os.environ.get(
 -    "INFLUX_TOKEN",
--    "tOpdgdFM2DBCY6-ZWZUn1s5bigxwmcrNGRNdNvHy79BSJq_yF9gFxHykKyUWRTWhCOu02SmJQmKEeaurU77hPw==",
+-    "<REDACTED_INFLUX_TOKEN>",
 +    
  )
  

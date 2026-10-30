@@ -52,9 +52,7 @@ from pathlib import Path
 #   1) 本文件**永久禁止**出现可用的默认令牌/连接凭据（本仓库是公开仓库，已泄露过一次）；
 #   2) 真实值只放两处：本目录的 `.env`（已被 .gitignore 排除）或系统环境变量；
 #   3) 两者都没有时**用的时候立刻失败**（fail-closed），错误信息不含任何令牌片段。
-INFLUX_URL = os.environ.get("INFLUX_URL", "")
-INFLUX_ORG = os.environ.get("INFLUX_ORG", "")
-INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "")
+#   注意：连接配置必须在 _load_dotenv() 之后读取，否则 .env 里的 URL/ORG/BUCKET 读不到。
 
 
 def _load_dotenv():
@@ -70,7 +68,8 @@ def _load_dotenv():
         if not p.is_file():
             continue
         try:
-            for raw in p.read_text(encoding="utf-8").splitlines():
+            # utf-8-sig 去 BOM；errors="replace" 兼容现场存成 GBK 的 .env。
+            for raw in p.read_text(encoding="utf-8-sig", errors="replace").splitlines():
                 line = raw.strip()
                 if not line or line.startswith("#") or "=" not in line:
                     continue
@@ -85,6 +84,9 @@ def _load_dotenv():
 
 _load_dotenv()
 
+INFLUX_URL = os.environ.get("INFLUX_URL", "")
+INFLUX_ORG = os.environ.get("INFLUX_ORG", "")
+INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "")
 INFLUX_TOKEN = os.environ.get("INFLUX_TOKEN", "").strip()
 
 

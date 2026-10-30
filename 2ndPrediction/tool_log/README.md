@@ -7,7 +7,7 @@
 | 模式 | 命令 | 用途 | 数据库 |
 |---|---|---|---|
 | `sim`（默认） | `python server.py` | 模拟器造数据，演示判定逻辑和按钮流程 | `data/tool_sim.db` |
-| `influx` | `python server.py --source influx` | 直连车间 influx（`10.196.32.63:8086`），拉真实 T1111 数据 | `data/tool.db` |
+| `influx` | `python server.py --source influx` | 直连车间 influx（`<influxdb主机>:8086`），拉真实 T1111 数据 | `data/tool.db` |
 
 > ⚠ **两个模式默认用不同的库文件**（2026-10-21 修）。原来都用 `data/tool.db`，实测踩到：先用 influx 回填真实数据，再开模拟器演示，29 件假数据（allnum 57800 段）直接灌进真实库，`pieces` 从 37 变 66，而且因为还在 7 天保留期内，清理策略不会删它们，只能手工挑出来删。
 >
@@ -319,13 +319,13 @@ P85 只用于显示不用于判定，原因见 `../out/分位数口径对比.txt
 ../../.venv/Scripts/python.exe influx_source.py
 ```
 
-连接配置全部走环境变量，代码里有默认值：
+连接配置全部走环境变量或本目录 `.env`（`.env` 已被 .gitignore 排除），代码里不再有任何真实默认值：
 
-| 变量 | 默认 |
+| 变量 | 取值来源 |
 |---|---|
-| `INFLUX_URL` | `http://10.196.32.63:8086` |
-| `INFLUX_ORG` / `INFLUX_BUCKET` | `s` / `iotdata` |
-| `INFLUX_TOKEN` | 代码内默认值（**不该进版本库**） |
+| `INFLUX_URL` | `http://<influxdb主机>:8086`（`.env`/环境变量） |
+| `INFLUX_ORG` / `INFLUX_BUCKET` | `<组织名>` / `<桶名>`（`.env`/环境变量） |
+| `INFLUX_TOKEN` | 只从 `.env`/环境变量读取，缺失即 fail-closed 报错（绝不写进代码/仓库） |
 | `INFLUX_DEVICE` / `INFLUX_TOOL` | `4152` / `T1111` |
 
 ### 拉取窗口怎么算（方案 A：水位线驱动）
