@@ -14,7 +14,10 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(__file__))
 import hi_asof as H
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, 'influxdb_4152_FanucNormalData_20261012_104944_L_T1111_T1111_life_labeled.csv')
 HI_CSV = os.path.join(ROOT, 'out_T1111', 'xalign_HI.csv')
 OUT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '13_整改执行_v2', 'hi_asof'))

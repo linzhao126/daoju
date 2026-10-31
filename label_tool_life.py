@@ -23,14 +23,57 @@
   python label_tool_life.py <数据文件.csv> [--records tool_life_records.csv]
                             [--tool T1111] [--cutting-state 3] [--selftest]
 """
-import argparse, os, sys
+import argparse, os, re, sys
 import pandas as pd, numpy as np
+from datetime import datetime
 
 pd.set_option('display.width', 240)
-TIME_FMT = '%Y/%m/%d %H:%M'
+TIME_FMT = '%Y/%m/%d %H:%M'      # 保留作参考；解析已改用下面的宽松函数
+
+# 台账 xlsx 里的时间写法不统一（已实测到 4 种），严格 strptime 碰到一条坏值就整批抛错。
+# 这正是当年只导出前 38 行、丢掉 39~60 的根因（见《P0_修复留痕/R-0_台账修复报告.md》）。
+_FULLWIDTH = {'：': ':', '／': '/', '－': '-', '　': ' '}
+_TIME_FMTS = ('%Y/%m/%d %H:%M:%S', '%Y/%m/%d %H:%M', '%Y-%m-%d %H:%M:%S',
+              '%Y-%m-%d %H:%M', '%Y/%m/%d/%H:%M', '%Y-%m-%d/%H:%M', '%Y-%m-%d', '%Y/%m/%d')
 
 
-# ---------------- 工具函数 ----------------
+def parse_ledger_time(v):
+    """宽松解析台账时间：全角→半角、多格式尝试、日与时粘连兜底。
+    返回 pd.NaT 表示解析不了（由调用方汇总后**报错指名**，不默默丢行）。"""
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return pd.NaT
+    if isinstance(v, (pd.Timestamp, datetime)):
+        return pd.Timestamp(v)
+    s = re.sub(r'\s+', ' ', str(v).strip())
+    for a, b in _FULLWIDTH.items():
+        s = s.replace(a, b)
+    if not s or s.lower() in ('none', 'nan'):
+        return pd.NaT
+    for fmt in _TIME_FMTS:
+        try:
+            return pd.Timestamp(datetime.strptime(s, fmt))
+        except ValueError:
+            pass
+    # 兜底 1：日与时粘连，如 `2026/9/416:05` 实为 9-04 16:05（不是“9 月 41 日”）
+    m = re.match(r'^(\d{4})[/-](\d{1,2})[/-](\d{3,4})[:](\d{2})$', s)
+    if m:
+        y, mo, dh, mi = (m.group(1), m.group(2), m.group(3), m.group(4))
+        day, hh = (int(dh[0]), int(dh[1:])) if len(dh) == 3 else (int(dh[:2]), int(dh[2:]))
+        try:
+            return pd.Timestamp(datetime(int(y), int(mo), day, hh, int(mi)))
+        except ValueError:
+            return pd.NaT
+    # 兜底 2：分隔符混用，如 `2026-10-26/9:20`
+    m = re.match(r'^(\d{4})[/-](\d{1,2})[/-](\d{1,2})[ /](\d{1,2}):(\d{2})', s)
+    if m:
+        try:
+            return pd.Timestamp(datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
+                                         int(m.group(4)), int(m.group(5))))
+        except ValueError:
+            return pd.NaT
+    return pd.NaT
+
+
 def pick(df, names):
     """返回 df 中第一个存在的列名"""
     for n in names:
@@ -39,11 +82,29 @@ def pick(df, names):
     return None
 
 
+def read_records_any(path):
+    """台账表可读 CSV 也可读 xlsx（xlsx 取第一个 sheet）。"""
+    if path.lower().endswith(('.xlsx', '.xlsm')):
+        return pd.read_excel(path, sheet_name=0)
+    return pd.read_csv(path, encoding='utf-8-sig')
+
+
 def load_records(path):
-    rec = pd.read_csv(path, encoding='utf-8-sig')
-    rec['_start'] = pd.to_datetime(rec['StartTime'].astype(str).str.strip(), format=TIME_FMT)
-    rec['_end'] = pd.to_datetime(rec['EndTime'].astype(str).str.strip(), format=TIME_FMT)
-    rec['刀号'] = rec['刀号'].astype(str).str.upper().str.strip()
+    rec = read_records_any(path)
+    rec.columns = [str(c).strip() for c in rec.columns]
+    if '刀号' not in rec.columns or '顺序号' not in rec.columns:
+        raise SystemExit('台账表缺必需列（需 刀号/顺序号/StartTime/EndTime）：%s → 实有列 %s'
+                         % (path, list(rec.columns)))
+    # 实测到 ` T1111`（带前导空格）：不归一会被下面的等值过滤默默漏掉整条
+    rec['刀号'] = rec['刀号'].astype(str).str.upper().str.replace(r'\s+', '', regex=True).str.strip()
+    rec['_start'] = rec['StartTime'].map(parse_ledger_time)
+    rec['_end'] = rec['EndTime'].map(parse_ledger_time)
+    # 开始时解析失败 = 这条周期无法定位 → **指名报错**，不静默丢行（静默丢行就是当年 38 行的成因）
+    bad = rec[rec['_start'].isna()]
+    if len(bad):
+        raise SystemExit('台账 %s 有 %d 条 StartTime 无法解析（顺序号 %s）；'
+                         'EndTime 为空属正常（末条开式区间），不视为错误。'
+                         % (os.path.basename(path), len(bad), bad['顺序号'].tolist()))
     return rec
 
 
@@ -81,10 +142,10 @@ def label_life(df, rec, tool_no, cutting_state=3):
     # 规范化记录表(若尚未解析时间列则就地解析，保证被调用方直接传 DataFrame 也能用)
     sub = rec.copy()
     if '_start' not in sub.columns:
-        sub['_start'] = pd.to_datetime(sub['StartTime'].astype(str).str.strip(), format=TIME_FMT)
+        sub['_start'] = sub['StartTime'].map(parse_ledger_time)
     if '_end' not in sub.columns:
-        sub['_end'] = pd.to_datetime(sub['EndTime'].astype(str).str.strip(), format=TIME_FMT)
-    sub['刀号'] = sub['刀号'].astype(str).str.upper().str.strip()
+        sub['_end'] = sub['EndTime'].map(parse_ledger_time)
+    sub['刀号'] = sub['刀号'].astype(str).str.upper().str.replace(r'\s+', '', regex=True).str.strip()
     sub = sub[sub['刀号'] == tool_no].sort_values('顺序号')
     if len(sub) == 0:
         print("!! 寿命记录表中找不到刀具 %s" % tool_no)
@@ -199,7 +260,9 @@ def selftest():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("datafile", nargs='?', help="采集数据 CSV")
-    ap.add_argument("--records", default="tool_life_records.csv", help="刀具寿命记录表 CSV")
+    ap.add_argument("--records", default=None,
+                    help="台账表（CSV 或 xlsx）；不传则按优先级自动取"
+                         "手工提供文件/tool_life_records_v3.csv → 三厂换刀记录.xlsx → tool_life_records.csv")
     ap.add_argument("--tool", default=None, help="要标注的刀号，默认取记录表第一把刀")
     ap.add_argument("--cutting-state", type=int, default=3, help="表示切削的 L_state 值，默认 3")
     ap.add_argument("--selftest", action="store_true", help="用合成数据自检标注逻辑")
@@ -211,7 +274,26 @@ def main():
 
     WS = os.path.dirname(os.path.abspath(__file__))
     data_p = a.datafile if os.path.isabs(a.datafile) else os.path.join(WS, a.datafile)
-    rec_p = a.records if os.path.isabs(a.records) else os.path.join(WS, a.records)
+
+    if a.records:
+        rec_p = a.records if os.path.isabs(a.records) else os.path.join(WS, a.records)
+    else:
+        # 优先级：修复后的 60 条 v3 → xlsx 原件 → 仓库旧副本（38 行，会丢 22 个周期）
+        cands = []
+        for wsd in (WS, os.path.abspath(os.path.join(WS, '..'))):
+            cands += [
+                os.path.join(wsd, '手工提供文件', 'tool_life_records_v3.csv'),
+                os.path.join(wsd, '手工提供文件', '三厂换刀记录.xlsx'),
+                os.path.join(wsd, '15_台账真值检验', 'input', '三厂换刀记录.xlsx'),
+                os.path.join(wsd, '20261027', '15_台账真值检验', 'input', '三厂换刀记录.xlsx'),
+                os.path.join(wsd, 'tool_life_records.csv'),
+            ]
+        rec_p = next((p for p in cands if os.path.exists(p)), None)
+        if rec_p is None:
+            raise SystemExit('找不到台账表：试过\n  ' + '\n  '.join(cands))
+        if os.path.basename(rec_p) == 'tool_life_records.csv':
+            print('!! 警告：用的是仓库旧副本 %s（实测只有 38 行，会丢 22 个周期）。\n'
+                  '   请优先放 手工提供文件/tool_life_records_v3.csv（60 条）或用 --records 指定。' % rec_p)
 
     print("数据文件:", data_p)
     print("寿命记录表:", rec_p)

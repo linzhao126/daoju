@@ -36,7 +36,10 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.abspath(os.path.join(HERE, '..'))
-ROOT = os.path.abspath(os.path.join(BASE, '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 OUT = os.path.join(BASE, '31_通道映射')
 sys.path.insert(0, HERE)
 

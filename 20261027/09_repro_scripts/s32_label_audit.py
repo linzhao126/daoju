@@ -41,7 +41,10 @@ import numpy as np
 csv.field_size_limit(10 ** 7)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 OUT = os.path.abspath(os.path.join(HERE, '..', '21_新数据标签审计'))
 os.makedirs(OUT, exist_ok=True)
 

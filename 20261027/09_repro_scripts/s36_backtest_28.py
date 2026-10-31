@@ -28,7 +28,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 import bt_core as BT
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 BASE = os.path.abspath(os.path.join(HERE, '..'))
 OUT = os.path.join(BASE, '24_程序归属修正')
 OLD_HI = os.path.join(ROOT, 'out_T1111', 'xalign_HI.csv')

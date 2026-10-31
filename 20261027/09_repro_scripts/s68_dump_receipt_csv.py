@@ -1,0 +1,122 @@
+# -*- coding: utf-8 -*-
+"""把 P0-00 移交回执主表另存一份 CSV（任务书 §7 表格的机读版本）。"""
+import csv
+import os
+
+BASE = os.path.dirname(os.path.abspath(__file__))
+OUT_DIR = os.path.join(BASE, '..', 'P0_数据与代码移交')
+OUT = os.path.join(OUT_DIR, 'P0-00_移交回执表.csv')
+
+
+def _open_w(path):
+    """目标被其他进程锁住时，回退到同目录带时间戳的新名，避免直接失败。"""
+    try:
+        return open(path, 'w', encoding='utf-8-sig', newline=''), path
+    except PermissionError:
+        import time
+        alt = os.path.join(os.path.dirname(path),
+                           os.path.splitext(os.path.basename(path))[0]
+                           + '_fresh_' + time.strftime('%Y%m%d_%H%M%S') + '.csv')
+        print('[WARN] 目标被锁，已回退写入：%s' % alt)
+        return open(alt, 'w', encoding='utf-8-sig', newline=''), alt
+
+COLS = ['回执编号', '要提供什么', '状态', '固定文件路径或安全移交方式',
+        '证据SHA或版本', '仍缺什么', '不提交的具体理由', '对项目目标影响']
+
+ROWS = [
+    ['S0', '访问令牌安全整改（吊销/新令牌/最小权限/日志审计/衍生扫描）',
+     '部分（①旧令牌已在服务端作废；⑤衍生文件扫描已完成 s69；②③④待 IT）',
+     '代码侧脱敏 daoju_repo@efc1dd0 02_源代码与配置/source/influx_source.py；.env.example 占位符；新令牌走 IT 内部安全渠道，不入对话/Git；衍扫发现 2ndPrediction/tool_log/.env:L7 已 gitignore 且从未进 Git',
+     '代码 Commit efc1dd0 + 7464a18；衍扫脚本 s69 已内置输出掩码',
+     '新令牌权限截图（脱敏）· 服务端存放位置说明 · InfluxDB 访问日志审计结论 · 确认本地 .env 与已作废那个是否同值',
+     'InfluxDB 服务端权限属 IT 侧，1 号位无管理台权限',
+     '不改变目标；阻塞"审核方直连 Influx 复算"这一路径，不阻塞离线数据复算'],
+
+    ['D01', '4152 全量原始 / 旧批 / labeled / xalign / tool.db 一致快照 / 字段字典 / SHA',
+     '部分（清单表已交；大文件走授权渠道；采样间隔分布待生成）',
+     '清单表 P0_数据与代码移交/P0-D01_数据清单表.csv（34 条）；10 个 >200MB 大文件走内网/硬盘/授权网盘；DB 快照 03_原始数据与标签/tool_db_snapshot/',
+     '24 个 ≤200MB 已实算 SHA；34 条路径与体积见清单；tool.db.readonly_copy WAL 0 字节已 checkpoint',
+     '每通道实际采样间隔分布 · 丢失/重复/乱序/跨班停机段清单 · FOCAS 每轮采集参数与串行耗时',
+     'GitHub 单文件 100 MB 硬限；3.3GB 采样间隔二次扫描本会话未跑',
+     '不改变目标；决定审核方能否独立复算'],
+
+    ['D02', '60 条换刀台账原文与逐条缺陷/证据分级',
+     '部分（原始 xlsx 与核对产物已在；逐条缺陷清单未按任务书格式系统提交）',
+     '工作区 20261008/三厂4152换刀时间.xlsx + 三厂换刀记录.xlsx；仓库 daoju_repo/20261027/15_台账真值检验/input/；核对 truth_vs_data_pieces.csv/switch_gap_candidates.csv/truth_nearest_break.csv',
+     'ledger_sha256.txt；xlsx 哈希见 P0-D01 清单"台账原始"行',
+     '每条按 12 字段填齐；c29/c35/c38/c51 之外还需再扫一遍',
+     '"是否真实失效=是"的填写规则必须车间答复，AI 无法自证',
+     '决定 C3 真值等级（当前 E2_PROXY 上限）；若 60 条都是"换刀就填是"，严格样本会进一步降'],
+
+    ['D03', '按物理刃口生命周期追踪的完整对齐表（刃口/段/件三层）',
+     '部分（段层件层已有；刃口层字段不全；UNKNOWN 缺口未系统标注）',
+     '段层 03_原始数据与标签/life_program_segments.csv；件层 tool_db_snapshot/pieces.csv 101 行 + raw_rows.csv 14374 行；审计 life_audit_4152.csv + label_conflicts.md；对齐 22_c48-c60_xalign/labeled_T1111_new.csv',
+     '见 P0-D01 清单"DB-快照/ALIGN产物"行',
+     'physical_tool_lives.csv 刃口层完整八字段 · tool_piece_exposure.csv 件-切削层 · 跨程序 11→20→11 对账样例',
+     '三层逻辑在 server.py 内部，但未导出为独立 CSV 交付；UNKNOWN 缺口规则待细化',
+     '决定审核方能否独立重建生命周期；缺失会导致比较平台不对齐'],
+
+    ['D04', '现场最小补记录建议（不改流程，先出表单与问题清单）',
+     '部分（作业卡已有；任务书八列结构待补齐）',
+     '现有 64_00_现场补样本作业卡.md；待新增 P0_数据与代码移交/P0-D04_现场问题清单.md',
+     '依赖 D02',
+     '每条问题按八列格式填齐（问题 ID / 受影响记录 / 证据 / 影响 / 要车间回答的问题 / 建议字段 / 能否历史补证 / 负责人）',
+     '未落到"要车间回答的具体问题"粒度；车间答复必须现场协调',
+     '若历史真值补不回，任务书 §8 第 4 条允许新采集生命周期建立未来验证集'],
+
+    ['D05', '油性目标机床崩刃基础信息与信号可用性（六要素脱敏证据）',
+     '未交（仅有现场反馈，无返回码硬证据）',
+     '现有 附件_证据/57_R06_崩刃A可行性/57-00 + 67-00_DTRQ读不出与六通道扫描.md；本目录待新增 P0-D05_油性机床现状表.md',
+     '无六要素',
+     '目标机床 ID/CNC 型号/刀位/工艺/主子程序/FOCAS 点位/崩刃案例四时刻/采集盒参数/停机接口审批',
+     '现场未安排采集接口实验；1 号位无机床侧执行通道',
+     '直接决定崩刃 A 是否只能提"本机暂停 + 重启前提"（按任务书 §0.2 分档评价）'],
+
+    ['D06', '2496/2428 等其他机床可用样本（第二批，不阻塞 4152）',
+     '部分（数据文件在工作区，未纳入统一清单）',
+     '工作区 merged_csv_20260901_160345_T2525_T2525_life_labeled.csv + influxdb_2428_FanucNormalData_20261014_141920_R_T3434_T3434_life_labeled.csv；均已在 P0-D01 清单登记',
+     '见 P0-D01 清单相应行',
+     '每台机床的完整生命周期数量、可交付时间；跨机床信号字段是否同构',
+     '任务书 §3-P1-D06 明确"不阻塞 4152 起步"；第二批再补',
+     '不改变目标；用于跨机床验证（审核方 M2 阶段）'],
+
+    ['C01', '生产 / 研究 / 演示三类代码的完整 Commit 清单',
+     '已交',
+     'run_all.sh（研究入口）；02_源代码与配置/source/server.py+influx_source.py+index.html（线上服务副本）；09_repro_scripts/s01~s67（研究脚本）；14_整改执行_v2b/tests/test_a~test_i（回归）；变更清单 71_00 §10 + 70_00',
+     '固定 Commit 7464a18（HEAD）；被审 0338a5d；父 445678a；脱敏基线 efc1dd0；server.py code_sha=f336f1d673e0',
+     '生产部署记录（哪个 Commit 实际跑在现场）由 IT 侧提供',
+     '生产部署日志不在本仓库',
+     '决定审核方能否定位到"当前运行版本"'],
+
+    ['C02', '原始到回测的可复现命令 + 逐刀预测输出',
+     '部分（A/C 段脚本已实跑；bash 全量本会话未跑通；逐刀预测部分缺）',
+     'run_all.sh（A45/A46 已加 s65/s66；PY 探测不硬编码；step 真实退出码）；s46_verify_acceptance.py 判据；逐刀预测 N03_pred_two_targets.csv / N04_nested_vs_insample.csv',
+     'Commit 7464a18；run_all.sh 46 步；已实跑 test_i/s62/s63/s64/s65/s66/test_h（UTF-8 留痕在各 N 目录 *_console.txt）',
+     '46 步整体未实跑（本会话 Windows 无 git-bash，bash.exe 解析到缺失 WSL）；B 段 3.3 GB 未随包；训练池 ID/测试刃口 ID/截至时点输入/失败原因/样本等级/实验 Commit 逐刀全量清单待补',
+     '需装有 bash 的环境（Linux CI / 完整 WSL）才能整体跑通；B 段与 D01 大文件同一约束',
+     '决定审核方能否独立重算；已明确 54/54 PASS 是日志模式匹配，不是科学/生产验收'],
+
+    ['C03', 'M0-A / M0-B / M1 对照基线冻结版本',
+     '部分（M0-B 已在 s43/s53；M1 未在 s46 判据独立冻结；M0-A 未单列脚本）',
+     'M0-B 条件生存 s03_conditional.py + s43_model_intervals.py + s53_r04_grade_split.py；HI 修正 M1 hi_asof 相关 s16_*/s20_*；M0-A s02_repro_loco.py 隐含',
+     '与 C01 同一 Commit 7464a18',
+     '三个基线的冻结数据集定义（DatasetVersion/Train IDs/Test IDs/TargetDefinition/LabelEvidenceLevel 全按任务书 §5.3 十二项）',
+     '未在 P0_数据与代码移交/P0-C03_基线冻结.csv 结构化列出；M1 与 M0-B 的代码文件清单要逐行核对',
+     '决定公平比较是否成立；任务书 §4-P0-C03 明确要求 1 号位冻结 M0-A/M0-B/M1'],
+
+    ['A01', '崩刃事件时刻 / 区间及现有检测链路时间预算',
+     '部分（链路时间预算 T0~T5 已定义；真实事件时刻本批无）',
+     'N05_时间戳链路定义/N05-00（T0~T5 recv_ts/batch_recv_lag_stats/盲区 n_no_recvts）；N05-01（按任务书 §0.2 分档 ≤1/5/10/20/30/60 秒重写）；test_h 24/24 PASS',
+     'Commit 7464a18；s56_r09_release_verify 报告 code_sha + MONITOR_ONLY + policy_mode + lag 可测',
+     '独立崩刃事件时刻真值（本批 15 个"破损换刀"标签不等于事件时刻，任务书 §2.2）；T3-T0 端到端时延实测；每档检出率/误报/漏报/置信区间',
+     '事件时刻无法从历史数据反推；需 R2 可控崩刃试验或新增记录才能得（须 0 号位与工艺/安全部门批准）',
+     '按任务书 §0.2：崩刃 A 不再以 1 秒为硬门槛，未达某档 ≠ 项目失败；仍待 0 号位定档'],
+]
+
+fh, wrote_path = _open_w(OUT)
+with fh as f:
+    w = csv.writer(f)
+    w.writerow(COLS)
+    for r in ROWS:
+        w.writerow(r)
+print('DONE →', wrote_path, '   rows=%d' % len(ROWS))

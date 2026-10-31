@@ -77,7 +77,10 @@ MAN.to_csv(os.path.join(D1, 'MANIFEST_v2.csv'), index=False, encoding='utf-8-sig
 print('[1] MANIFEST_v2.csv %d 条' % len(MAN))
 
 # 外部输入（不在包内，但必须能对上）
-ROOT = os.path.abspath(os.path.join(BASE, '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 EXT = [
     ('influxdb_4152_FanucNormalData_20261012_104944_L_T1111_T1111_life_labeled.csv',
      os.path.join(ROOT, 'influxdb_4152_FanucNormalData_20261012_104944_L_T1111_T1111_life_labeled.csv')),

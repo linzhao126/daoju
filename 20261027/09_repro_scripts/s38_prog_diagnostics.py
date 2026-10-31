@@ -36,7 +36,10 @@ from scipy import stats
 csv.field_size_limit(10 ** 7)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 BASE = os.path.abspath(os.path.join(HERE, '..'))
 D25 = os.path.join(BASE, '25_品番混批诊断')
 D26 = os.path.join(BASE, '26_M0分组粒度终局')

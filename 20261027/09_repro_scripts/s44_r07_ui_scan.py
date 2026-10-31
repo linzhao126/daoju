@@ -30,7 +30,10 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(HERE)                                   # .../20261027
-ROOT = os.path.abspath(os.path.join(BASE, '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 OUT = os.path.join(BASE, '45_R07_UI证据')
 SRC = os.path.join(BASE, '02_源代码与配置', 'source')
 LIVE = os.path.join(ROOT, '2ndPrediction', 'tool_log')

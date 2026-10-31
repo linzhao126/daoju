@@ -28,7 +28,10 @@ sys.path.insert(0, HERE)
 from s59_bandwidth import one_cycle, auc, CHIP, WEAR   # 复用同一套统计，避免两套口径
 
 BASE = os.path.abspath(os.path.join(HERE, '..'))
-ROOT = os.path.abspath(os.path.join(BASE, '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 OUT = os.path.join(BASE, '附件_证据', '67_通道扫描')
 os.makedirs(OUT, exist_ok=True)
 

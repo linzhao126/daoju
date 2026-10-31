@@ -34,7 +34,10 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.abspath(os.path.join(HERE, '..'))
-ROOT = os.path.abspath(os.path.join(BASE, '..', '..', '..'))   # workBoddyHome刀具
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 LIVE = os.path.join(ROOT, '2ndPrediction', 'tool_log')
 PKG = os.path.join(BASE, '02_源代码与配置', 'source')
 OUT = os.path.join(BASE, '附件_证据', '59_R09_版本核证')

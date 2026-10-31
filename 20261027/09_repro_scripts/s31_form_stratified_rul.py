@@ -58,7 +58,10 @@ def weibull_mle(x):
     lam = (np.mean(x ** k)) ** (1.0 / k)
     return float(k), float(lam)
 
-ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # .../20261027
 # 台账（P1-07：0 号位已授权随包公开）→ 包内副本优先，仓库根仅作回退
 XLS = os.path.join(BASE, '15_台账真值检验', 'input', '三厂换刀记录.xlsx')

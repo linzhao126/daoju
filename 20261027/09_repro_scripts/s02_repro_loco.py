@@ -22,7 +22,10 @@ import os, hashlib, json
 import numpy as np
 import pandas as pd
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import wsroot as _wsroot          # G2：不再数 '..'，按工作区特征向上定位
+ROOT = _wsroot.find(_os.path.dirname(_os.path.abspath(__file__)))
 HI_CSV = os.path.join(ROOT, 'out_T1111', 'xalign_HI.csv')
 AUDIT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                      '03_原始数据与标签', 'life_audit_4152.csv'))

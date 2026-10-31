@@ -31,7 +31,29 @@ import bt_core as BT
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.abspath(os.path.join(HERE, '..'))
-ROOT = os.path.abspath(os.path.join(BASE, '..', '..', '..'))
+
+
+def _find_root(fname):
+    """上溯寻找含指定外部数据文件的祖先目录。
+
+    背景：本目录原布局为 `<工作区根>/20261026/回复/20261027`，脚本里的 ROOT 按当时层数
+    写死了上溯 `'..'` 个数；仓库重构到 `<工作区根>/daoju_repo/20261027` 后层数变了（差一层），
+    导致 ROOT 指到 `<盘符>/abc` 而报 FileNotFoundError。
+    改成按**文件是否存在**向上探，对两种布局都可用（审核 P1-01 可复现性）。
+    """
+    p = BASE
+    for _ in range(6):
+        if os.path.exists(os.path.join(p, fname)):
+            return p
+        parent = os.path.dirname(p)
+        if parent == p:
+            break
+        p = parent
+    return os.path.abspath(os.path.join(BASE, '..', '..'))   # 兼容旧行为：没找到就按当前布局取工作区根
+
+
+ROOT = _find_root('influxdb_4152_FanucNormalData_20261012_104944_L_T1111_T1111_life_labeled.csv')
+print('[s53] ROOT 解析为:', ROOT)
 OUT = os.path.join(BASE, '附件_证据', '54_R04_分级输出')
 os.makedirs(OUT, exist_ok=True)
 
